@@ -139,6 +139,9 @@ async function patchAgent(toolIds: string[]) {
           first_message: FIRST_MESSAGE,
           prompt: { prompt: SYSTEM_PROMPT, tool_ids: toolIds },
         },
+        // 'patient' so a breath mid-answer isn't read as end-of-turn. The agent
+        // still takes its turn after turn_timeout (7s) of real silence.
+        turn: { turn_eagerness: 'patient' },
       },
     }),
   });
