@@ -8,13 +8,15 @@
 import {
   ConversationProvider,
   useConversationControls,
+  useConversationInput,
   useConversationMode,
   useConversationStatus,
   useConversationClientTool,
 } from '@elevenlabs/react';
 import { useCallback, useRef, type ReactNode } from 'react';
-import type { Command } from '@shared/types';
+import type { Command, Phase } from '@shared/types';
 import { validateRoast } from '@shared/validate';
+import { useSession } from '@/lib/ws';
 
 type SendCommand = (command: Command) => void;
 
@@ -47,16 +49,23 @@ export function BoothAgentProvider({
   );
 }
 
+function indexForPhase(phase: Phase | undefined): 1 | 2 | 3 {
+  // Answer index follows the app phase (the source of truth), so an operator
+  // skip doesn't misfile the next captured answer.
+  if (phase === 'q1') return 1;
+  if (phase === 'q2') return 2;
+  return 3;
+}
+
 function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
-  const answerCount = useRef(0);
+  const { state } = useSession();
   const pendingFallback = useRef(false);
 
   useConversationClientTool('captureAnswer', (parameters) => {
     const text = String((parameters as { text?: string }).text ?? '');
-    answerCount.current = Math.min(answerCount.current + 1, 3);
     sendCommand({
       type: 'answer',
-      index: answerCount.current as 1 | 2 | 3,
+      index: indexForPhase(state?.phase),
       text,
     });
     return 'captured';
@@ -80,7 +89,6 @@ function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
   });
 
   useConversationClientTool('sessionComplete', () => {
-    answerCount.current = 0;
     pendingFallback.current = false;
     sendCommand({ type: 'complete' });
     return 'ok';
@@ -90,7 +98,9 @@ function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
 }
 
 export function useBoothAgent() {
-  const { startSession, endSession, getId } = useConversationControls();
+  const { startSession, endSession, getId, setVolume, sendUserMessage } =
+    useConversationControls();
+  const { setMuted } = useConversationInput();
   const { status } = useConversationStatus();
   const { isSpeaking, isListening } = useConversationMode();
 
@@ -128,5 +138,8 @@ export function useBoothAgent() {
     status, // 'disconnected' | 'connecting' | 'connected'
     isSpeaking,
     isListening,
+    setMuted,
+    setVolume,
+    sendUserMessage,
   };
 }

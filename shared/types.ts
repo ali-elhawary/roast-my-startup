@@ -45,6 +45,10 @@ export type SessionState = {
   roast: Roast | null;
   phaseStartedAt: number | null;
   error: string | null;
+  // Increments on every `skip` (operator or question-timeout). /station watches
+  // it to nudge the live agent to move on, so the conversation and the app phase
+  // stay in sync. Agent-driven advances (captureAnswer) do NOT bump it.
+  skipSignal: number;
   stats: {
     sessionsToday: number;
     byCategory: Record<string, number>;

@@ -17,10 +17,11 @@ export default function Station() {
 
 function StationInner() {
   const { state, sendCommand } = useSession();
-  const { start, stop } = useBoothAgent();
+  const { start, stop, status, setMuted, setVolume, sendUserMessage } = useBoothAgent();
   const [kioskReady, setKioskReady] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const startedFor = useRef<string | null>(null);
+  const lastSkipSignal = useRef(0);
 
   // Auto-start the live agent when the operator moves the session into q1 —
   // but only for live sessions (not the operator's fake session), and only once
@@ -34,6 +35,7 @@ function StationInner() {
       startedFor.current !== state.sessionId
     ) {
       startedFor.current = state.sessionId;
+      lastSkipSignal.current = state.skipSignal;
       start().catch((err) =>
         sendCommand({ type: 'agentError', message: String(err) }),
       );
@@ -44,6 +46,39 @@ function StationInner() {
       void stop();
     }
   }, [state, kioskReady, start, stop, sendCommand]);
+
+  // Pause/resume the LIVE agent: mute the mic and silence output while paused,
+  // restore on resume. Only meaningful while connected.
+  const paused = state?.paused ?? false;
+  useEffect(() => {
+    if (status !== 'connected') return;
+    setMuted(paused);
+    setVolume({ volume: paused ? 0 : 1 });
+  }, [paused, status, setMuted, setVolume]);
+
+  // Operator skip (or the question timeout) bumps skipSignal. Nudge the live
+  // agent to move on so it doesn't keep asking the question the app already
+  // advanced past.
+  const skipSignal = state?.skipSignal ?? 0;
+  const phase = state?.phase;
+  useEffect(() => {
+    if (status !== 'connected') {
+      lastSkipSignal.current = skipSignal;
+      return;
+    }
+    if (skipSignal > lastSkipSignal.current) {
+      lastSkipSignal.current = skipSignal;
+      const nudge =
+        phase === 'generating'
+          ? "That's all my answers — go ahead and roast me."
+          : "Let's move on to the next question.";
+      try {
+        sendUserMessage(nudge);
+      } catch {
+        /* not connected yet; ignore */
+      }
+    }
+  }, [skipSignal, status, phase, sendUserMessage]);
 
   if (!state) return <Center>Connecting&hellip;</Center>;
 

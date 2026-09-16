@@ -44,6 +44,21 @@ console.assert(s.queued?.name === 'Grace', 'Grace queued');
 step({ type: 'reset' });
 console.assert(s.phase === 'ready' && s.founder?.name === 'Grace', 'reset promotes queue');
 
+console.log('\n--- skip bumps skipSignal (agent nudge signal) ---');
+let sk: SessionState = initialState();
+let tk = 1000;
+const stepK = (c: Command) => { tk += 1000; sk = reduce(sk, c, tk); };
+stepK({ type: 'signin', name: 'Skip', email: 's@x.com' });
+stepK({ type: 'start' });
+const before = sk.skipSignal;
+stepK({ type: 'skip' });
+console.log(`skipSignal ${before} -> ${sk.skipSignal}, phase=${sk.phase}`);
+console.assert(sk.skipSignal === before + 1, 'skip increments skipSignal');
+console.assert(sk.phase === 'q2', 'skip q1 -> q2');
+const beforeAns = sk.skipSignal;
+stepK({ type: 'answer', index: 2, text: 'x' });
+console.assert(sk.skipSignal === beforeAns, 'answer does NOT bump skipSignal');
+
 console.log('\n--- skipRoast + word counts ---');
 const words = (x: string) => x.trim().split(/\s+/).length;
 console.log('pass words', words(FAKE_ROASTS.pass.text), 'banned words', words(FAKE_ROASTS.banned.text), 'fallback words', words(FALLBACK_ROAST.text));

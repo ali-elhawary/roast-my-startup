@@ -37,6 +37,7 @@ export function initialState(): SessionState {
     roast: null,
     phaseStartedAt: null,
     error: null,
+    skipSignal: 0,
     stats: { sessionsToday: 0, byCategory: {} },
   };
 }
@@ -130,10 +131,17 @@ export function reduce(
     }
 
     case 'skip': {
-      // Operator or question-timeout: advance past the current question.
+      // Operator or question-timeout: advance past the current question. Bump
+      // skipSignal so /station nudges the live agent to move on too.
       if (!QUESTION_PHASES.includes(state.phase)) return state;
       const next = nextQuestionPhase(state.phase)!;
-      return { ...state, phase: next, phaseStartedAt: now, paused: false };
+      return {
+        ...state,
+        phase: next,
+        phaseStartedAt: now,
+        paused: false,
+        skipSignal: state.skipSignal + 1,
+      };
     }
 
     case 'roast': {
