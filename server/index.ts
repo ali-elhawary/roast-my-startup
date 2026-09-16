@@ -11,6 +11,7 @@ import { aggregateTodayStats, connectDb, ensureIndexes, isAtlasEnabled } from '.
 import { RECORDINGS_DIR } from './recordings';
 import { flushQueue, startQueueFlusher } from './writeQueue';
 import agentRouter from './routes/agent';
+import adminRouter from './routes/admin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
@@ -20,6 +21,7 @@ const app = express();
 app.use(express.json());
 
 app.use('/api/agent', agentRouter);
+app.use('/api/admin', adminRouter);
 
 // Serve saved conversation recordings on the local network (booth-grade host;
 // swap for S3/GCS signed URLs in production).
