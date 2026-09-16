@@ -58,7 +58,12 @@ export const BANNED_WORDS = [
 ];
 
 // Timings (ms).
-export const IDLE_TIMEOUT_MS = 10_000; // applies only in `ready` and `complete`
+// Idle auto-reset catches abandonment. `ready` needs enough time for a founder
+// to get seated and the operator to press start; `complete` should let the
+// roast card be photographed before it clears. Neither applies during q1..q3,
+// generating, or roasting.
+export const READY_IDLE_TIMEOUT_MS = 90_000;
+export const COMPLETE_IDLE_TIMEOUT_MS = 45_000;
 export const QUESTION_TIMEOUT_MS = 45_000; // per-question safety net
 export const GENERATING_WARN_MS = 6_000; // operator warning threshold
 

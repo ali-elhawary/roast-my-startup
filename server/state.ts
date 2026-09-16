@@ -8,7 +8,8 @@
 import type { Command, Founder, Phase, SessionState } from '../shared/types';
 
 export {
-  IDLE_TIMEOUT_MS,
+  READY_IDLE_TIMEOUT_MS,
+  COMPLETE_IDLE_TIMEOUT_MS,
   QUESTION_TIMEOUT_MS,
   GENERATING_WARN_MS,
 } from '../shared/constants';

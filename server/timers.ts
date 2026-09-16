@@ -3,7 +3,11 @@
 // non-phase-changing commands don't extend the window.
 
 import type { Command, SessionState } from '../shared/types';
-import { IDLE_TIMEOUT_MS, QUESTION_TIMEOUT_MS } from '../shared/constants';
+import {
+  COMPLETE_IDLE_TIMEOUT_MS,
+  QUESTION_TIMEOUT_MS,
+  READY_IDLE_TIMEOUT_MS,
+} from '../shared/constants';
 
 let handle: ReturnType<typeof setTimeout> | null = null;
 
@@ -35,8 +39,11 @@ export function reconcileTimers(
     // Question-timeout safety net: auto-advance. (In the live flow the agent's
     // own turn-taking usually moves first; this is a backstop.)
     schedule(QUESTION_TIMEOUT_MS, { type: 'skip' });
-  } else if (state.phase === 'ready' || state.phase === 'complete') {
-    // Idle-timeout: a founder who wandered off, or a session nobody cleared.
-    schedule(IDLE_TIMEOUT_MS, { type: 'reset' });
+  } else if (state.phase === 'ready') {
+    // Founder signed in but never started — free the booth.
+    schedule(READY_IDLE_TIMEOUT_MS, { type: 'reset' });
+  } else if (state.phase === 'complete') {
+    // Completed session nobody cleared — reset after the card has been seen.
+    schedule(COMPLETE_IDLE_TIMEOUT_MS, { type: 'reset' });
   }
 }
