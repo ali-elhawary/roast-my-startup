@@ -5,8 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import type { Command } from '../shared/types';
-import { addClient, dispatch } from './session';
+import { addClient, dispatch, setStats } from './session';
 import { runFakeSession, type FakeVariant } from './fakeSession';
+import { aggregateTodayStats, connectDb, isAtlasEnabled } from './db';
 import agentRouter from './routes/agent';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,6 +52,17 @@ if (isProd) {
   app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`[server] http://localhost:${PORT}  (prod=${isProd})`);
+
+  // Optional Atlas: connect and hydrate today's /panel count so it survives a
+  // restart. If MONGODB_URI is unset or unreachable, stay in-memory.
+  if (isAtlasEnabled()) {
+    await connectDb();
+    const stats = await aggregateTodayStats();
+    if (stats) {
+      setStats(stats);
+      console.log(`[db] hydrated stats: ${stats.sessionsToday} sessions today`);
+    }
+  }
 });

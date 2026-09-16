@@ -3,7 +3,7 @@
 // transition side effects. All phase changes flow through `dispatch` -> reduce.
 
 import type { WebSocket } from 'ws';
-import type { Command, ServerMessage } from '../shared/types';
+import type { Command, ServerMessage, SessionState } from '../shared/types';
 import { initialState, reduce } from './state';
 import { reconcileTimers } from './timers';
 import { cancelFakeSession } from './fakeSession';
@@ -14,6 +14,13 @@ const clients = new Set<WebSocket>();
 
 export function getState() {
   return state;
+}
+
+// Replace the cumulative stats (used to hydrate the /panel count from Atlas on
+// startup so it survives a restart), then broadcast.
+export function setStats(stats: SessionState['stats']) {
+  state = { ...state, stats };
+  broadcast();
 }
 
 function broadcast() {

@@ -6,6 +6,17 @@ import { Router } from 'express';
 
 const router = Router();
 
+// Public-agent fallback. The agent id is not a secret (you still need auth to
+// connect to a private agent). The client uses this only if the signed URL
+// fails, so the booth can keep running against a public agent.
+router.get('/config', (_req, res) => {
+  const agentId = process.env.ELEVENLABS_AGENT_ID;
+  if (!agentId) {
+    return res.status(500).json({ error: 'Missing ELEVENLABS_AGENT_ID' });
+  }
+  res.json({ agentId });
+});
+
 router.get('/signed-url', async (_req, res) => {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const agentId = process.env.ELEVENLABS_AGENT_ID;

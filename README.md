@@ -71,19 +71,29 @@ presses start.
 
 See `AGENT_PROMPT.md` for the three client tools, the agent settings, and the
 system prompt. The API key stays server-side: the browser fetches a short-lived
-signed URL from `/api/agent/signed-url`.
+signed URL from `/api/agent/signed-url`. If that fails, `/station` falls back to
+`/api/agent/config` and connects with the public `agentId` (works only if the
+agent allows unauthenticated connections).
 
-## Wired vs. stubbed
+## MongoDB Atlas
 
-Stubbed in `server/integrations.ts` (marked `TODO`), ready to fill in:
+Optional. Leave `MONGODB_URI` blank and everything runs in memory as before. Set
+it and:
 
-- `saveSession` — logs an Atlas-ready document. Swap for a MongoDB write.
+- `saveSession` writes one document per completed session to the `sessions`
+  collection (shape from the brief, section 5). Write failures are logged, never
+  block the founder.
+- On startup the server aggregates today's sessions by category and hydrates the
+  `/panel` count, so it survives a restart. During a run the count updates live
+  from the in-memory `stats`.
+
+## Still stubbed
+
+In `server/integrations.ts` (marked `TODO`):
+
 - `sendFollowUpEmail` — logs. Swap for the real email + recording link.
 - `fetchConversationAudio` — returns a mock URL. Swap for the ElevenLabs
   conversation audio endpoint, called server-side after the founder leaves.
-
-The live category panel reads in-memory `stats`. It survives a continuous server
-run but not a restart; move it to an Atlas aggregation when you wire `saveSession`.
 
 ## Where to change things
 

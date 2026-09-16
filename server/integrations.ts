@@ -3,12 +3,20 @@
 // ElevenLabs agent owns that) and no browser-side recording anywhere.
 
 import type { Founder, SessionState } from '../shared/types';
+import { sessionsCollection } from './db';
 
 export async function saveSession(session: SessionState): Promise<void> {
-  // TODO: real implementation — write one document per completed session to
-  // MongoDB Atlas. Shape mirrors the event brief (section 5). Atlas write
-  // failures must never block the founder: queue locally and retry async.
-  console.log('[saveSession]', JSON.stringify(toSessionDocument(session), null, 2));
+  const doc = toSessionDocument(session);
+  console.log(`[saveSession] ${doc.session_id} (${session.roast?.source ?? 'no-roast'})`);
+
+  const col = sessionsCollection();
+  if (!col) return; // Atlas disabled — in-memory only.
+  try {
+    await col.insertOne(doc);
+  } catch (err) {
+    // Never block the founder. Real impl would queue locally and retry async.
+    console.error('[saveSession] Atlas write failed:', err);
+  }
 }
 
 export async function sendFollowUpEmail(
@@ -30,17 +38,22 @@ export async function fetchConversationAudio(
   return mockUrl;
 }
 
-// Atlas-ready document shape (event brief, section 5). Not persisted yet.
+// Atlas document shape (event brief, section 5). Dates are stored as Date
+// objects so the /panel aggregation can filter by day.
 function toSessionDocument(s: SessionState) {
+  const completedAt = new Date();
+  const startedAt = s.founder ? new Date(s.founder.consentAt) : completedAt;
   return {
     session_id: s.sessionId,
     conversation_id: s.conversationId,
-    completed_at: Date.now(),
+    started_at: startedAt,
+    completed_at: completedAt,
+    duration_ms: completedAt.getTime() - startedAt.getTime(),
     source: s.sessionSource,
     participant: s.founder && {
       name: s.founder.name,
       email: s.founder.email,
-      consent_accepted_at: s.founder.consentAt,
+      consent_accepted_at: new Date(s.founder.consentAt),
     },
     answers: s.answers,
     roast: s.roast,

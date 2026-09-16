@@ -96,11 +96,29 @@ export function useBoothAgent() {
 
   const start = useCallback(async () => {
     await navigator.mediaDevices.getUserMedia({ audio: true });
-    const res = await fetch('/api/agent/signed-url');
-    if (!res.ok) throw new Error('Could not get signed URL');
-    const { signedUrl } = (await res.json()) as { signedUrl: string };
-    // The conversation id is reported via the provider's onConnect handler.
-    await startSession({ signedUrl });
+
+    // Preferred: private agent via a short-lived signed URL (API key stays
+    // server-side). The conversation id is reported via the provider's
+    // onConnect handler in either path.
+    try {
+      const res = await fetch('/api/agent/signed-url');
+      if (res.ok) {
+        const { signedUrl } = (await res.json()) as { signedUrl: string };
+        await startSession({ signedUrl });
+        return;
+      }
+      console.warn('[agent] signed-url unavailable, trying public agentId');
+    } catch (err) {
+      console.warn('[agent] signed-url error, trying public agentId', err);
+    }
+
+    // Fallback: public agent via agentId (works only if the agent allows
+    // unauthenticated connections).
+    const cfg = await fetch('/api/agent/config');
+    if (!cfg.ok) throw new Error('Could not reach agent (signed URL and config both failed)');
+    const { agentId } = (await cfg.json()) as { agentId: string };
+    if (!agentId) throw new Error('No agentId configured');
+    await startSession({ agentId });
   }, [startSession]);
 
   return {
