@@ -1,8 +1,8 @@
-// External-service stubs. Clearly marked mock implementations — the real
-// integrations get wired in later. There is no roast generation here (the
-// ElevenLabs agent owns that) and no browser-side recording anywhere.
+// Session persistence. The ElevenLabs agent owns roast generation, and the
+// recording/transcript/email pipeline lives in followup.ts — this module just
+// writes the completed-session document to Atlas.
 
-import type { Founder, SessionState } from '../shared/types';
+import type { SessionState } from '../shared/types';
 import { sessionsCollection } from './db';
 
 export async function saveSession(session: SessionState): Promise<void> {
@@ -17,25 +17,6 @@ export async function saveSession(session: SessionState): Promise<void> {
     // Never block the founder. Real impl would queue locally and retry async.
     console.error('[saveSession] Atlas write failed:', err);
   }
-}
-
-export async function sendFollowUpEmail(
-  founder: Founder,
-  sessionId: string,
-): Promise<void> {
-  // TODO: real implementation — email the founder their recording link plus
-  // MongoDB for Startups details.
-  console.log(`[sendFollowUpEmail] -> ${founder.email} (session ${sessionId})`);
-}
-
-export async function fetchConversationAudio(
-  conversationId: string,
-): Promise<string> {
-  // TODO: real implementation — call the ElevenLabs conversation audio endpoint
-  // server-side with the API key, well after the founder has left the chair.
-  const mockUrl = `https://example.com/recordings/${conversationId}.mp3`;
-  console.log(`[fetchConversationAudio] ${conversationId} -> ${mockUrl}`);
-  return mockUrl;
 }
 
 // Atlas document shape (event brief, section 5). Dates are stored as Date

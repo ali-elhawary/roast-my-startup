@@ -87,13 +87,21 @@ it and:
   `/panel` count, so it survives a restart. During a run the count updates live
   from the in-memory `stats`.
 
-## Still stubbed
+## Follow-up: recording + transcript + email
 
-In `server/integrations.ts` (marked `TODO`):
+On `complete`, the server saves the session doc, then `server/followup.ts` runs
+asynchronously (well after the founder leaves): it polls ElevenLabs until the
+recording is finalized, downloads the MP3 and hosts it under `/recordings`,
+folds the transcript + recording link into the Atlas doc, and emails the
+founder.
 
-- `sendFollowUpEmail` — logs. Swap for the real email + recording link.
-- `fetchConversationAudio` — returns a mock URL. Swap for the ElevenLabs
-  conversation audio endpoint, called server-side after the founder leaves.
+- Email send is in **preview mode**: `server/email.ts` composes the real subject
+  and body and writes a `.eml` to `./outbox` (and logs a line). Swap the
+  `deliver()` body for SMTP / Resend / SendGrid — composition stays the same.
+- Recordings are hosted by the Node server on the LAN (booth-grade). For
+  production, change `saveRecording` to upload to S3/GCS and return a signed URL.
+  Set `PUBLIC_BASE_URL` so the emailed link is reachable.
+- Real MongoDB for Startups email copy is a `TODO` in `server/email.ts`.
 
 ## Where to change things
 

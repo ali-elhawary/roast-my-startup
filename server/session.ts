@@ -7,7 +7,8 @@ import type { Command, ServerMessage, SessionState } from '../shared/types';
 import { initialState, reduce } from './state';
 import { reconcileTimers } from './timers';
 import { cancelFakeSession } from './fakeSession';
-import { saveSession, sendFollowUpEmail } from './integrations';
+import { saveSession } from './integrations';
+import { scheduleFollowUp } from './followup';
 
 let state = initialState();
 const clients = new Set<WebSocket>();
@@ -49,12 +50,12 @@ export function dispatch(command: Command) {
     cancelFakeSession();
   }
 
-  // Side effects on the transition INTO `complete`.
+  // Side effects on the transition INTO `complete`. Save the session doc now;
+  // fetch the recording + transcript and email the founder asynchronously, well
+  // after they've left the chair.
   if (prev.phase !== 'complete' && state.phase === 'complete') {
     void saveSession(state);
-    if (state.founder) {
-      void sendFollowUpEmail(state.founder, state.sessionId ?? 'unknown');
-    }
+    scheduleFollowUp(state);
   }
 
   reconcileTimers(state, dispatch);

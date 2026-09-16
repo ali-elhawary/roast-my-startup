@@ -8,6 +8,7 @@ import type { Command } from '../shared/types';
 import { addClient, dispatch, setStats } from './session';
 import { runFakeSession, type FakeVariant } from './fakeSession';
 import { aggregateTodayStats, connectDb, isAtlasEnabled } from './db';
+import { RECORDINGS_DIR } from './recordings';
 import agentRouter from './routes/agent';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,10 @@ const app = express();
 app.use(express.json());
 
 app.use('/api/agent', agentRouter);
+
+// Serve saved conversation recordings on the local network (booth-grade host;
+// swap for S3/GCS signed URLs in production).
+app.use('/recordings', express.static(RECORDINGS_DIR));
 
 // Drives the operator's "run fake session" button. Kept server-side so the
 // fake session dispatches the exact same commands a real client would.
