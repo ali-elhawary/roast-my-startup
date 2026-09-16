@@ -15,7 +15,7 @@ Open each in its own browser window.
 | Route | Device | What it shows |
 |---|---|---|
 | `/signin` | tablet at the entrance | name, email, consent; queues the next founder while the booth is busy |
-| `/station` | screen in front of the founder | the current question, a 45s bar, thinking/listening states. Runs the live agent. |
+| `/station` | screen in front of the founder | the current question, a 55s bar, thinking/listening states. Runs the live agent. |
 | `/audience` | large outward monitor | attract loop, question list, roast revealed sentence by sentence, photo-ready roast card |
 | `/panel` | second outward monitor | running count of what founders are building today, by category |
 | `/operator` | host tablet | phase, timers, answers, controls, and the dev fake-session buttons |

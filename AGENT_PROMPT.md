@@ -29,9 +29,10 @@ you finish delivering the roast and the closing line."
 ## Agent settings to check
 
 - **Audio retention** (privacy): on, or the recording won't exist to fetch later.
-- **Conversation flow**: put the 45-second per-question timeout here, plus
-  turn-taking and interruption settings. The app keeps a 45s server-side backstop
-  but the agent should move first.
+- **Conversation flow / turn-taking**: `turn_eagerness` is set to `patient` and
+  `turn_timeout` to 10s (a breath mid-answer isn't read as end-of-turn, and a
+  founder gathering their thoughts isn't cut off). The app keeps a 55s
+  server-side per-question backstop, but the agent should move first.
 - **`agent_chat_response_part`** in `client_events`: enable it if you want
   streamed response text during voice conversations.
 - **LLM**: set to Gemini if you want Google to own generation (the brief assumes

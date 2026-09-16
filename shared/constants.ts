@@ -64,7 +64,7 @@ export const BANNED_WORDS = [
 // generating, or roasting.
 export const READY_IDLE_TIMEOUT_MS = 90_000;
 export const COMPLETE_IDLE_TIMEOUT_MS = 45_000;
-export const QUESTION_TIMEOUT_MS = 45_000; // per-question safety net
+export const QUESTION_TIMEOUT_MS = 55_000; // per-question safety net (founder answer time)
 export const GENERATING_WARN_MS = 6_000; // operator warning threshold
 
 // Estimated speaking rate for the /audience roast reveal.
