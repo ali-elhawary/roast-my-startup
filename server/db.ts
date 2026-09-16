@@ -34,6 +34,25 @@ export function sessionsCollection(): Collection<Document> | null {
   return db ? db.collection('sessions') : null;
 }
 
+// Session documents and transcripts are retained 90 days, then deleted (brief).
+// A TTL index on completed_at lets Atlas expire them automatically.
+export const SESSION_TTL_DAYS = 90;
+
+export async function ensureIndexes(): Promise<void> {
+  const col = sessionsCollection();
+  if (!col) return;
+  try {
+    await col.createIndex(
+      { completed_at: 1 },
+      { expireAfterSeconds: SESSION_TTL_DAYS * 24 * 60 * 60, name: 'session_ttl_90d' },
+    );
+    console.log(`[db] TTL index ensured (${SESSION_TTL_DAYS}d on completed_at)`);
+  } catch (err) {
+    // A conflicting index (different expiry) needs a manual collMod — log and go.
+    console.error('[db] could not ensure TTL index:', err);
+  }
+}
+
 // Aggregate today's sessions into the shape the /panel screen consumes. Runs on
 // startup so the count survives a server restart. Returns null when Atlas is off.
 export async function aggregateTodayStats(): Promise<

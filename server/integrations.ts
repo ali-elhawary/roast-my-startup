@@ -4,6 +4,7 @@
 
 import type { SessionState } from '../shared/types';
 import { sessionsCollection } from './db';
+import { enqueueSessionWrite } from './writeQueue';
 
 export async function saveSession(session: SessionState): Promise<void> {
   const doc = toSessionDocument(session);
@@ -14,8 +15,9 @@ export async function saveSession(session: SessionState): Promise<void> {
   try {
     await col.insertOne(doc);
   } catch (err) {
-    // Never block the founder. Real impl would queue locally and retry async.
-    console.error('[saveSession] Atlas write failed:', err);
+    // Never block the founder: queue locally and let the flusher retry.
+    console.error('[saveSession] Atlas write failed, queuing for retry:', err);
+    await enqueueSessionWrite(doc);
   }
 }
 

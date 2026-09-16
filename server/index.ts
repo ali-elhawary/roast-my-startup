@@ -7,8 +7,9 @@ import { WebSocketServer } from 'ws';
 import type { Command } from '../shared/types';
 import { addClient, dispatch, setStats } from './session';
 import { runFakeSession, type FakeVariant } from './fakeSession';
-import { aggregateTodayStats, connectDb, isAtlasEnabled } from './db';
+import { aggregateTodayStats, connectDb, ensureIndexes, isAtlasEnabled } from './db';
 import { RECORDINGS_DIR } from './recordings';
+import { flushQueue, startQueueFlusher } from './writeQueue';
 import agentRouter from './routes/agent';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -64,10 +65,15 @@ server.listen(PORT, async () => {
   // restart. If MONGODB_URI is unset or unreachable, stay in-memory.
   if (isAtlasEnabled()) {
     await connectDb();
+    await ensureIndexes();
     const stats = await aggregateTodayStats();
     if (stats) {
       setStats(stats);
       console.log(`[db] hydrated stats: ${stats.sessionsToday} sessions today`);
     }
+    // Flush any writes that failed while Atlas was unreachable, then keep
+    // retrying on an interval.
+    await flushQueue();
+    startQueueFlusher();
   }
 });
