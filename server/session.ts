@@ -41,6 +41,7 @@ export function addClient(ws: WebSocket) {
 export function dispatch(command: Command) {
   const prev = state;
   state = reduce(state, command, Date.now());
+  console.log(`[cmd] ${command.type} -> phase=${state.phase} source=${state.sessionSource ?? '-'}`);
 
   // If the operator intervenes, cancel any running fake session so its pending
   // timers don't fight the new state.
