@@ -50,8 +50,8 @@ marketplace, consumer, climate, security, other
 ## Banned words
 
 The app rejects any roast containing these as whole words, and rejects roasts
-under 70 or over 140 words. Mirror the list in the system prompt so the agent
-rarely trips it:
+under 60 or over 160 words (persona targets 90-120). Mirror the list in the
+system prompt so the agent rarely trips it:
 
 ```
 fuck, shit, bitch, asshole, cunt, dick, retard

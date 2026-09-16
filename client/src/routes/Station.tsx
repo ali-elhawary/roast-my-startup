@@ -193,7 +193,7 @@ function Thinking() {
 
 function Listening() {
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex h-full flex-col items-center justify-center gap-10">
       <div className="relative flex h-40 w-40 items-center justify-center">
         <span
           className="absolute h-40 w-40 rounded-full border-2 border-accent"
@@ -205,6 +205,8 @@ function Listening() {
         />
         <span className="h-24 w-24 rounded-full bg-accent" />
       </div>
+      <div className="text-3xl font-bold text-ink-100">Here comes your roast&hellip;</div>
+      <div className="text-xl text-ink-400">Watch the big screen.</div>
     </div>
   );
 }
