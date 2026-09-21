@@ -6,4 +6,5 @@ dist
 npm-debug.log*
 recordings
 outbox
+videos
 .write-queue

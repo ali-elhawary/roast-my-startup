@@ -21,18 +21,25 @@ export function scheduleFollowUp(session: SessionState) {
   const { founder, sessionId, roast, conversationId } = session;
   if (!founder) return;
 
+  // When video is the deliverable, the video pipeline (server/video.ts) owns the
+  // email. followup still fetches the transcript + audio and records them on the
+  // session doc, but suppresses the audio-only email to avoid double-sending.
+  const emailAudio = process.env.VIDEO_ENABLED !== 'true';
+
   const isRealConversation = !!conversationId && !conversationId.startsWith('fake_');
 
   // Fake session or no live conversation: nothing to fetch, still preview the
   // email so the composition can be verified.
   if (!isRealConversation) {
-    void sendFollowUpEmail({
-      founder,
-      sessionId: sessionId ?? 'unknown',
-      roast,
-      recordingUrl: null,
-      recordingExpiresAt: null,
-    });
+    if (emailAudio) {
+      void sendFollowUpEmail({
+        founder,
+        sessionId: sessionId ?? 'unknown',
+        roast,
+        recordingUrl: null,
+        recordingExpiresAt: null,
+      });
+    }
     return;
   }
 
@@ -56,14 +63,16 @@ export function scheduleFollowUp(session: SessionState) {
         const transcript = transcriptToText(details.transcript);
         await updateSessionDoc(sessionId, transcript, recordingUrl, recordingExpiresAt);
 
-        await sendFollowUpEmail({
-          founder,
-          sessionId: sessionId ?? 'unknown',
-          roast,
-          recordingUrl,
-          recordingExpiresAt,
-        });
-        console.log(`[followup] delivered for ${conversationId} (attempt ${attempts})`);
+        if (emailAudio) {
+          await sendFollowUpEmail({
+            founder,
+            sessionId: sessionId ?? 'unknown',
+            roast,
+            recordingUrl,
+            recordingExpiresAt,
+          });
+        }
+        console.log(`[followup] processed ${conversationId} (attempt ${attempts}, emailAudio=${emailAudio})`);
         return;
       }
     } catch (err) {
@@ -72,7 +81,7 @@ export function scheduleFollowUp(session: SessionState) {
 
     if (attempts < MAX_ATTEMPTS) {
       setTimeout(attempt, RETRY_INTERVAL_MS);
-    } else {
+    } else if (emailAudio) {
       // Recording never finalized in time — send the email without it rather
       // than dropping the follow-up entirely.
       console.warn(`[followup] giving up on audio for ${conversationId}; emailing without recording`);

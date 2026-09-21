@@ -103,6 +103,28 @@ founder.
   Set `PUBLIC_BASE_URL` so the emailed link is reachable.
 - Real MongoDB for Startups email copy is a `TODO` in `server/email.ts`.
 
+## Video (Option 1: in-app capture)
+
+When `VIDEO_ENABLED=true` (and `VITE_VIDEO_ENABLED=true` for the client), `/station`
+records the selected camera + mic with `MediaRecorder` for the length of the live
+session and uploads the clip when the session ends. The server then:
+
+1. transcodes it to a phone-playable MP4 (`ffmpeg-static`, H.264/AAC, 720p),
+2. builds a WebVTT caption track from the transcript's `time_in_call_secs`
+   (`buildVtt` in `server/video.ts`), aligned to the video via an offset,
+3. hosts both under `/videos`, exposes a player page at `/watch/:sessionId`,
+   records `video` on the Atlas doc, and emails the founder the watch link.
+
+When video is on, the audio-only follow-up email is suppressed (the video is the
+deliverable); the transcript/audio are still saved to the session doc.
+
+- Pick the capture device (e.g. a capture-card feed from a nicer camera) with the
+  camera dropdown on `/station` while idle/ready.
+- `processSessionVideo(file, meta)` in `server/video.ts` is **source-agnostic**, so
+  an OBS adapter can later call it with a file OBS recorded instead of a browser
+  upload — no changes to the transcode/caption/host/email tail.
+- Recordings/videos are booth-grade local hosting; swap for S3/GCS in production.
+
 ## Where to change things
 
 - Questions, categories, banned words, timings: `shared/constants.ts`

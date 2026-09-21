@@ -9,9 +9,12 @@ import { addClient, dispatch, setStats } from './session';
 import { runFakeSession, type FakeVariant } from './fakeSession';
 import { aggregateTodayStats, connectDb, ensureIndexes, isAtlasEnabled } from './db';
 import { RECORDINGS_DIR } from './recordings';
+import { VIDEOS_DIR } from './video';
 import { flushQueue, startQueueFlusher } from './writeQueue';
 import agentRouter from './routes/agent';
 import adminRouter from './routes/admin';
+import videoRouter, { VIDEO_RAW_TYPES } from './routes/video';
+import { watchPage } from './watchPage';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
@@ -26,6 +29,13 @@ app.use('/api/admin', adminRouter);
 // Serve saved conversation recordings on the local network (booth-grade host;
 // swap for S3/GCS signed URLs in production).
 app.use('/recordings', express.static(RECORDINGS_DIR));
+
+// Video upload (raw body) + hosting + a simple player page for the emailed link.
+app.use('/api/video', express.raw({ type: VIDEO_RAW_TYPES, limit: '300mb' }), videoRouter);
+app.use('/videos', express.static(VIDEOS_DIR));
+app.get('/watch/:sessionId', (req, res) => {
+  res.type('html').send(watchPage(req.params.sessionId));
+});
 
 // Drives the operator's "run fake session" button. Kept server-side so the
 // fake session dispatches the exact same commands a real client would.

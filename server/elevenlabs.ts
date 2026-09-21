@@ -8,7 +8,7 @@ function apiKey(): string | null {
   return process.env.ELEVENLABS_API_KEY || null;
 }
 
-export type TranscriptTurn = { role: string; message: string };
+export type TranscriptTurn = { role: string; message: string; timeInCallSecs: number };
 
 export type ConversationDetails = {
   status: string; // 'processing' | 'done' | ...
@@ -28,10 +28,14 @@ export async function fetchConversationDetails(
   const d = (await res.json()) as {
     status?: string;
     has_audio?: boolean;
-    transcript?: Array<{ role?: string; message?: string | null }>;
+    transcript?: Array<{ role?: string; message?: string | null; time_in_call_secs?: number }>;
   };
   const transcript: TranscriptTurn[] = (d.transcript ?? [])
-    .map((t) => ({ role: t.role ?? 'unknown', message: (t.message ?? '').trim() }))
+    .map((t) => ({
+      role: t.role ?? 'unknown',
+      message: (t.message ?? '').trim(),
+      timeInCallSecs: t.time_in_call_secs ?? 0,
+    }))
     .filter((t) => t.message.length > 0);
   return {
     status: d.status ?? 'unknown',

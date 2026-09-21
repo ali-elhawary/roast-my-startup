@@ -16,6 +16,7 @@ export type FollowUpEmailInput = {
   roast: Roast | null;
   recordingUrl: string | null;
   recordingExpiresAt: number | null;
+  watchUrl?: string | null; // video watch page (takes precedence over audio link)
 };
 
 export async function sendFollowUpEmail(input: FollowUpEmailInput): Promise<void> {
@@ -34,7 +35,9 @@ function composeEmail(input: FollowUpEmailInput): {
     ? new Date(input.recordingExpiresAt).toLocaleDateString()
     : null;
 
-  const subject = 'Your Roast My Startup recording';
+  const subject = input.watchUrl
+    ? 'Your Roast My Startup video'
+    : 'Your Roast My Startup recording';
 
   // TODO: replace with the real MongoDB for Startups program copy (MongoDB owns
   // this content).
@@ -42,9 +45,11 @@ function composeEmail(input: FollowUpEmailInput): {
     'MongoDB for Startups gives eligible startups free Atlas credits, technical ' +
     'guidance, and co-marketing. Details: [TODO: real link].';
 
-  const recordingLine = input.recordingUrl
-    ? `Listen back here: ${input.recordingUrl}${expiry ? `\n(This link expires ${expiry}.)` : ''}`
-    : 'Your recording is still processing; we\u2019ll follow up with the link shortly.';
+  const recordingLine = input.watchUrl
+    ? `Watch your roast here: ${input.watchUrl}${expiry ? `\n(This link expires ${expiry}.)` : ''}`
+    : input.recordingUrl
+      ? `Listen back here: ${input.recordingUrl}${expiry ? `\n(This link expires ${expiry}.)` : ''}`
+      : 'Your recording is still processing; we\u2019ll follow up with the link shortly.';
 
   const roastBlock = roastText
     ? `Here\u2019s the roast, in case you want it in writing:\n\n"${roastText}"`
@@ -69,9 +74,11 @@ function composeEmail(input: FollowUpEmailInput): {
   <p>Thanks for getting roasted at the booth.</p>
   ${roastText ? `<blockquote style="border-left:3px solid #39FF6A;margin:0;padding:8px 16px;color:#111">${escapeHtml(roastText)}</blockquote>` : ''}
   <p>${
-    input.recordingUrl
-      ? `<a href="${input.recordingUrl}">Listen back to your recording</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
-      : 'Your recording is still processing; we\u2019ll follow up with the link shortly.'
+    input.watchUrl
+      ? `<a href="${input.watchUrl}">Watch your roast</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
+      : input.recordingUrl
+        ? `<a href="${input.recordingUrl}">Listen back to your recording</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
+        : 'Your recording is still processing; we\u2019ll follow up with the link shortly.'
   }</p>
   <hr/>
   <p style="color:#555">${escapeHtml(startupsBlurb)}</p>
