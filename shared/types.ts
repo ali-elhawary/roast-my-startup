@@ -49,6 +49,9 @@ export type SessionState = {
   // it to nudge the live agent to move on, so the conversation and the app phase
   // stay in sync. Agent-driven advances (captureAnswer) do NOT bump it.
   skipSignal: number;
+  // Reported by /station's video recorder so /operator can see capture/upload
+  // status live. Null when not recording video.
+  videoStatus: 'recording' | 'uploading' | 'uploaded' | 'error' | null;
   stats: {
     sessionsToday: number;
     byCategory: Record<string, number>;
@@ -71,7 +74,8 @@ export type Command =
   | { type: 'resume' }
   | { type: 'reset' }
   | { type: 'stop' } // emergency stop -> idle
-  | { type: 'agentError'; message: string };
+  | { type: 'agentError'; message: string }
+  | { type: 'videoStatus'; status: 'recording' | 'uploading' | 'uploaded' | 'error' };
 
 // Server -> client message. The entire state object is broadcast on every
 // change; no diffs or patches.

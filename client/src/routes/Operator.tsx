@@ -104,6 +104,7 @@ export default function Operator() {
           label="Roast source"
           value={state.roast ? state.roast.source : '\u2014'}
         />
+        <Info label="Video" value={state.videoStatus ?? '\u2014'} />
       </div>
 
       <div className="rounded-lg border border-ink-600 bg-ink-800 p-4 text-sm">

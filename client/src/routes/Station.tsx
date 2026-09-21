@@ -31,6 +31,7 @@ function StationInner() {
     useBoothAgent();
   const {
     enabled: videoEnabled,
+    status: recorderStatus,
     devices: cameras,
     deviceId: cameraId,
     setDeviceId: setCameraId,
@@ -144,6 +145,13 @@ function StationInner() {
 
   // Never leak pending teardown timers if the station unmounts.
   useEffect(() => clearTeardownTimers, [clearTeardownTimers]);
+
+  // Mirror the recorder's status to the server so /operator can see capture +
+  // upload progress live.
+  useEffect(() => {
+    if (!videoEnabled || recorderStatus === 'idle') return;
+    sendCommand({ type: 'videoStatus', status: recorderStatus });
+  }, [recorderStatus, videoEnabled, sendCommand]);
 
   // Pause/resume the LIVE agent: mute the mic and silence output while paused,
   // restore on resume. Only meaningful while connected.
@@ -283,6 +291,19 @@ function StationInner() {
   return (
     <>
       {cameraPicker}
+      {videoEnabled && recorderStatus === 'recording' && (
+        <div className="fixed left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-bold">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+          REC
+        </div>
+      )}
+      {videoEnabled && (recorderStatus === 'uploading' || recorderStatus === 'uploaded' || recorderStatus === 'error') && (
+        <div className="fixed bottom-3 left-3 z-10 rounded-lg bg-ink-800/85 px-3 py-1.5 text-sm">
+          {recorderStatus === 'uploading' && <span className="text-ink-200">Uploading video&hellip;</span>}
+          {recorderStatus === 'uploaded' && <span className="text-accent">Video sent &#10003;</span>}
+          {recorderStatus === 'error' && <span className="text-red-400">Video upload failed</span>}
+        </div>
+      )}
       {content}
     </>
   );

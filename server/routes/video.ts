@@ -10,17 +10,9 @@ import { VIDEOS_DIR, processSessionVideo } from '../video';
 
 const router = Router();
 
-// Accept common recording containers as raw bodies (up to 300 MB).
-const rawVideo = [
-  'video/webm',
-  'video/mp4',
-  'video/x-matroska',
-  'application/octet-stream',
-];
-
+// The raw body parser is applied where this router is mounted (see index.ts).
 router.post(
   '/:sessionId',
-  // express.raw is added per-route in index.ts via router-level middleware below
   async (req, res) => {
     const { sessionId } = req.params;
     const body = req.body as Buffer;
@@ -64,5 +56,4 @@ function strOrNull(v: unknown): string | null {
   return typeof v === 'string' && v.length ? v : null;
 }
 
-export const VIDEO_RAW_TYPES = rawVideo;
 export default router;

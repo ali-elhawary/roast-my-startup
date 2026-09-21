@@ -38,6 +38,7 @@ export function initialState(): SessionState {
     phaseStartedAt: null,
     error: null,
     skipSignal: 0,
+    videoStatus: null,
     stats: { sessionsToday: 0, byCategory: {} },
   };
 }
@@ -205,6 +206,11 @@ export function reduce(
     case 'agentError': {
       // Surface the error for the operator; does not change phase.
       return { ...state, error: command.message };
+    }
+
+    case 'videoStatus': {
+      // /station reporting its recorder/upload status; does not change phase.
+      return { ...state, videoStatus: command.status };
     }
 
     default: {

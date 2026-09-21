@@ -13,7 +13,7 @@ import { VIDEOS_DIR } from './video';
 import { flushQueue, startQueueFlusher } from './writeQueue';
 import agentRouter from './routes/agent';
 import adminRouter from './routes/admin';
-import videoRouter, { VIDEO_RAW_TYPES } from './routes/video';
+import videoRouter from './routes/video';
 import { watchPage } from './watchPage';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,7 +31,19 @@ app.use('/api/admin', adminRouter);
 app.use('/recordings', express.static(RECORDINGS_DIR));
 
 // Video upload (raw body) + hosting + a simple player page for the emailed link.
-app.use('/api/video', express.raw({ type: VIDEO_RAW_TYPES, limit: '300mb' }), videoRouter);
+// MediaRecorder sends codec-laden mime types (e.g. video/webm;codecs=vp9,opus)
+// whose unquoted comma breaks content-type parsing, so body-parser refuses to
+// read the body. Normalize the header to octet-stream first, then parse raw —
+// robust to any client or a future OBS adapter.
+app.use(
+  '/api/video',
+  (req, _res, next) => {
+    req.headers['content-type'] = 'application/octet-stream';
+    next();
+  },
+  express.raw({ type: '*/*', limit: '300mb' }),
+  videoRouter,
+);
 app.use('/videos', express.static(VIDEOS_DIR));
 app.get('/watch/:sessionId', (req, res) => {
   res.type('html').send(watchPage(req.params.sessionId));

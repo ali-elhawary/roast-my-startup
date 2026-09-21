@@ -7,6 +7,8 @@ import { useCallback, useRef, useState } from 'react';
 
 export const VIDEO_ENABLED = import.meta.env.VITE_VIDEO_ENABLED === 'true';
 
+export type RecorderStatus = 'idle' | 'recording' | 'uploading' | 'uploaded' | 'error';
+
 type UploadMeta = {
   sessionId: string;
   conversationId: string | null;
@@ -31,6 +33,7 @@ function pickMimeType(): string | '' {
 export function useVideoRecorder() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string>('');
+  const [status, setStatus] = useState<RecorderStatus>('idle');
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -71,8 +74,10 @@ export function useVideoRecorder() {
       recorder.start(1000); // flush in 1s chunks
       recorderRef.current = recorder;
       recordStartRef.current = Date.now();
+      setStatus('recording');
     } catch (err) {
       console.warn('[video] recorder failed to start', err);
+      setStatus('error');
     }
   }, [deviceId]);
 
@@ -93,7 +98,10 @@ export function useVideoRecorder() {
 
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    if (!blob.size) return;
+    if (!blob.size) {
+      setStatus('error');
+      return;
+    }
 
     const offsetMs = meta.conversationStartMs
       ? meta.conversationStartMs - recordStartRef.current
@@ -107,20 +115,34 @@ export function useVideoRecorder() {
       params.set('consentAt', String(meta.founder.consentAt));
     }
 
+    setStatus('uploading');
     try {
-      await fetch(`/api/video/${encodeURIComponent(meta.sessionId)}?${params.toString()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': blob.type || 'video/webm' },
-        body: blob,
-      });
-      console.log(`[video] uploaded ${blob.size} bytes for ${meta.sessionId}`);
+      const res = await fetch(
+        `/api/video/${encodeURIComponent(meta.sessionId)}?${params.toString()}`,
+        {
+          method: 'POST',
+          // Plain octet-stream: MediaRecorder's codec-laden mime (e.g.
+          // video/webm;codecs=vp9,opus) trips strict content-type parsing.
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: blob,
+        },
+      );
+      if (res.ok) {
+        console.log(`[video] uploaded ${blob.size} bytes for ${meta.sessionId}`);
+        setStatus('uploaded');
+      } else {
+        console.warn('[video] upload rejected', res.status);
+        setStatus('error');
+      }
     } catch (err) {
       console.warn('[video] upload failed', err);
+      setStatus('error');
     }
   }, []);
 
   return {
     enabled: VIDEO_ENABLED,
+    status,
     devices,
     deviceId,
     setDeviceId,
