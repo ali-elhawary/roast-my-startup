@@ -109,11 +109,16 @@ When `VIDEO_ENABLED=true` (and `VITE_VIDEO_ENABLED=true` for the client), `/stat
 records the selected camera + mic with `MediaRecorder` for the length of the live
 session and uploads the clip when the session ends. The server then:
 
-1. transcodes it to a phone-playable MP4 (`ffmpeg-static`, H.264/AAC, 720p),
-2. builds a WebVTT caption track from the transcript's `time_in_call_secs`
-   (`buildVtt` in `server/video.ts`), aligned to the video via an offset,
-3. hosts both under `/videos`, exposes a player page at `/watch/:sessionId`,
-   records `video` on the Atlas doc, and emails the founder the watch link.
+1. transcodes it to a phone-playable MP4 (`ffmpeg-static`, H.264/AAC, 720p) and
+   **muxes in the ElevenLabs conversation recording as the soundtrack** (agent +
+   founder, both sides), offset-aligned to the video; if that audio isn't
+   available it falls back to the camera's own mic track,
+2. builds a WebVTT caption track from the transcript, split into ~8-10 word cues
+   spread across each turn (`buildVtt` in `server/video.ts`) so captions don't
+   cover the frame,
+3. hosts both under `/videos`, exposes a player page at `/watch/:sessionId`
+   (with `::cue` styling pinned to a bottom band), records `video` on the Atlas
+   doc, and emails the founder the watch link.
 
 When video is on, the audio-only follow-up email is suppressed (the video is the
 deliverable); the transcript/audio are still saved to the session doc.

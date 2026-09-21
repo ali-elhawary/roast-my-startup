@@ -24,6 +24,13 @@ export function watchPage(sessionId: string): string {
     .accent { color: #39FF6A; }
     video { width: min(100%, 900px); border-radius: 12px; background: #000;
       outline: none; }
+    /* Keep captions to a small, unobtrusive band at the bottom. */
+    video::cue {
+      font-size: 0.85rem;
+      line-height: 1.25;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.55);
+    }
     p.note { color: #5c5c66; font-size: 0.9rem; text-align: center; max-width: 40ch; }
   </style>
 </head>
