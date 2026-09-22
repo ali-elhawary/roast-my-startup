@@ -26,11 +26,6 @@ app.use(express.json());
 app.use('/api/agent', agentRouter);
 app.use('/api/admin', adminRouter);
 
-// Partner logos (used by the client screens and the emailed watch page). Served
-// from public/ so the Node-rendered /watch page gets them in dev too; in prod
-// they're also copied into dist by the client build.
-app.use('/logos', express.static(path.resolve(__dirname, '../public/logos')));
-
 // Serve saved conversation recordings on the local network (booth-grade host;
 // swap for S3/GCS signed URLs in production).
 app.use('/recordings', express.static(RECORDINGS_DIR));

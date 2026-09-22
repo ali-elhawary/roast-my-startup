@@ -80,7 +80,7 @@ function Attract() {
 
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
-      <Brand height={30} />
+      <Brand className="text-2xl" />
       <div>
         <h1 className="max-w-5xl text-7xl font-black leading-[1.05] tracking-tight text-balance">
           Tell us what you&rsquo;re building.
@@ -111,7 +111,7 @@ function Questions({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col justify-center px-16">
-      <Brand className="mb-12" height={24} />
+      <Brand className="mb-12 text-xl" />
       <ul className="space-y-8">
         {QUESTIONS.map((q, idx) => {
           const done = activeIndex === -1 ? false : idx < activeIndex;
@@ -180,7 +180,7 @@ function Roasting({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col justify-center px-16 py-14">
-      <Brand className="mb-10" height={24} />
+      <Brand className="mb-10 text-xl" />
       <div className="space-y-4">
         {visible.map((seg, idx) => {
           const isCurrent = idx === visible.length - 1;
@@ -210,7 +210,7 @@ function RoastCard({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
-      <Brand height={30} />
+      <Brand className="text-2xl" />
       <div className="flex flex-1 items-center">
         <blockquote className="max-w-6xl text-7xl font-black leading-[1.05] tracking-tight text-balance">
           <span className="text-accent">&ldquo;</span>
