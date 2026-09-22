@@ -59,14 +59,20 @@ export const BANNED_WORDS = [
 ];
 
 // Timings (ms).
-// Idle auto-reset catches abandonment. `ready` needs enough time for a founder
-// to get seated and the operator to press start; `complete` should let the
-// roast card be photographed before it clears. Neither applies during q1..q3,
-// generating, or roasting.
+// READY: if the founder who's up never taps Begin, advance to the next in line.
+// COMPLETE_SAFETY: the roast card stays until someone taps Done; this long
+// backstop only advances if the booth is abandoned. Neither applies during
+// q1..q3, generating, or roasting.
 export const READY_IDLE_TIMEOUT_MS = 90_000;
-export const COMPLETE_IDLE_TIMEOUT_MS = 45_000;
+export const COMPLETE_SAFETY_TIMEOUT_MS = 150_000; // ~2.5 min backstop
 export const QUESTION_TIMEOUT_MS = 55_000; // per-question safety net (founder answer time)
+export const GENERATION_TIMEOUT_MS = 20_000; // hung-generation recovery
 export const GENERATING_WARN_MS = 6_000; // operator warning threshold
 
 // Estimated speaking rate for the /audience roast reveal.
 export const WORDS_PER_MINUTE = 150;
+
+// Manual nudge (ms) for aligning the muxed conversation audio + captions to the
+// video. Added to the measured connect offset. Positive pushes audio/captions
+// later. Tune by ear after a live run; 0 is a good starting point.
+export const SYNC_CALIBRATION_MS = 0;

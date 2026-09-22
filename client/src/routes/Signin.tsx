@@ -28,15 +28,21 @@ export default function Signin() {
   }
 
   if (submitted) {
+    const myEmail = email.trim().toLowerCase();
+    const isUp = state?.founder?.email?.toLowerCase() === myEmail;
+    const queueIndex = state
+      ? state.queue.findIndex((f) => f.email.toLowerCase() === myEmail)
+      : -1;
+    const lineMsg = isUp
+      ? 'You\u2019re up \u2014 take the chair and tap Begin.'
+      : queueIndex >= 0
+        ? `You\u2019re #${queueIndex + 1} in line. We\u2019ll call you.`
+        : 'Take a seat when you\u2019re called.';
     return (
       <div className="flex h-full flex-col items-center justify-center px-8 text-center">
         <Brand className="mb-10 text-lg" />
         <div className="text-5xl font-extrabold text-accent">You're in, {name.trim()}.</div>
-        <p className="mt-6 max-w-xl text-2xl text-ink-200">
-          {busy
-            ? 'A session is in progress. Take a seat when you\u2019re called.'
-            : 'Take a seat when you\u2019re called.'}
-        </p>
+        <p className="mt-6 max-w-xl text-2xl text-ink-200">{lineMsg}</p>
         <button
           className="mt-12 text-base text-ink-400 underline underline-offset-4"
           onClick={() => {

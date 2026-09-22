@@ -5,12 +5,13 @@
 // `reduce` is pure (state + command + now -> state) so it can be unit-tested
 // later without a server.
 
-import type { Command, Founder, Phase, SessionState } from '../shared/types';
+import type { Command, Phase, QueuedFounder, SessionState } from '../shared/types';
 
 export {
   READY_IDLE_TIMEOUT_MS,
-  COMPLETE_IDLE_TIMEOUT_MS,
+  COMPLETE_SAFETY_TIMEOUT_MS,
   QUESTION_TIMEOUT_MS,
+  GENERATION_TIMEOUT_MS,
   GENERATING_WARN_MS,
 } from '../shared/constants';
 
@@ -18,6 +19,10 @@ let idCounter = 0;
 function makeId(): string {
   idCounter += 1;
   return `s_${Date.now().toString(36)}_${idCounter.toString(36)}`;
+}
+function makeFounderId(): string {
+  idCounter += 1;
+  return `f_${Date.now().toString(36)}_${idCounter.toString(36)}`;
 }
 
 function emptyAnswers(): SessionState['answers'] {
@@ -32,7 +37,7 @@ export function initialState(): SessionState {
     sessionSource: null,
     paused: false,
     founder: null,
-    queued: null,
+    queue: [],
     answers: emptyAnswers(),
     roast: null,
     phaseStartedAt: null,
@@ -43,11 +48,36 @@ export function initialState(): SessionState {
   };
 }
 
-// Return to `idle`, preserving only cumulative stats.
-function freshIdle(stats: SessionState['stats']): SessionState {
+// Return to `idle`, preserving cumulative stats AND the waiting line.
+function idleState(prev: SessionState): SessionState {
   const s = initialState();
-  s.stats = stats;
+  s.stats = prev.stats;
+  s.queue = prev.queue;
   return s;
+}
+
+// Start a session for `entry`. Caller passes `prev` with the entry already
+// removed from the queue. Keeps stats + the remaining queue.
+function beginSession(prev: SessionState, entry: QueuedFounder, now: number): SessionState {
+  const s = idleState(prev);
+  return {
+    ...s,
+    phase: 'ready',
+    sessionId: makeId(),
+    sessionSource: entry.source,
+    founder: { id: entry.id, name: entry.name, email: entry.email, consentAt: entry.consentAt },
+    phaseStartedAt: now,
+  };
+}
+
+// End the current session and pull the next founder into `ready`, or go idle if
+// the line is empty.
+function promoteNext(prev: SessionState, now: number): SessionState {
+  if (prev.queue.length > 0) {
+    const [next, ...rest] = prev.queue;
+    return beginSession({ ...prev, queue: rest }, next, now);
+  }
+  return idleState(prev);
 }
 
 const QUESTION_PHASES: Phase[] = ['q1', 'q2', 'q3'];
@@ -61,23 +91,6 @@ function nextQuestionPhase(phase: Phase): Phase | null {
   if (phase === 'q2') return 'q3';
   if (phase === 'q3') return 'generating';
   return null;
-}
-
-function beginSession(
-  stats: SessionState['stats'],
-  founder: Founder,
-  source: SessionState['sessionSource'],
-  now: number,
-): SessionState {
-  const s = freshIdle(stats);
-  return {
-    ...s,
-    phase: 'ready',
-    sessionId: makeId(),
-    sessionSource: source,
-    founder,
-    phaseStartedAt: now,
-  };
 }
 
 function countSession(state: SessionState): SessionState['stats'] {
@@ -97,17 +110,20 @@ export function reduce(
 ): SessionState {
   switch (command.type) {
     case 'signin': {
-      const founder: Founder = {
+      const entry: QueuedFounder = {
+        id: makeFounderId(),
         name: command.name,
         email: command.email,
         consentAt: now,
+        source: command.source ?? 'live',
       };
-      const source = command.source ?? 'live';
+      const queued = { ...state, queue: [...state.queue, entry] };
+      // Booth free: pull the front of the line straight into `ready`.
+      // Otherwise the sign-up just waits — it never blocks the active session.
       if (state.phase === 'idle') {
-        return beginSession(state.stats, founder, source, now);
+        return promoteNext(queued, now);
       }
-      // Booth is busy: queue this founder for after the current session.
-      return { ...state, queued: founder };
+      return queued;
     }
 
     case 'start': {
@@ -190,17 +206,25 @@ export function reduce(
       return { ...state, paused: false, phaseStartedAt: now };
     }
 
+    case 'next': {
+      // Done / Call next / safety timeout: end the current session and pull the
+      // next founder into `ready` (or idle if the line is empty).
+      return promoteNext(state, now);
+    }
+
+    case 'dequeue': {
+      // Operator removes someone from the waiting line.
+      return { ...state, queue: state.queue.filter((f) => f.id !== command.id) };
+    }
+
     case 'reset': {
-      // Gentle reset: promote a queued founder to `ready`, else return to idle.
-      if (state.queued) {
-        return beginSession(state.stats, state.queued, 'live', now);
-      }
-      return freshIdle(state.stats);
+      // Cancel the current session -> idle, keep the waiting line intact.
+      return idleState(state);
     }
 
     case 'stop': {
-      // Emergency stop: hard reset to idle, drop any queue.
-      return freshIdle(state.stats);
+      // Emergency stop -> idle, keep the waiting line (operator calls next).
+      return idleState(state);
     }
 
     case 'agentError': {

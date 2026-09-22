@@ -38,11 +38,39 @@ console.assert(validateRoast(FAKE_ROASTS.pass.text).ok === true, 'pass roast val
 console.assert(validateRoast(FAKE_ROASTS.banned.text).ok === false, 'banned roast rejected');
 console.assert(validateRoast(FALLBACK_ROAST.text).ok === true, 'fallback valid');
 
-console.log('\n--- reset promotes queued founder ---');
-step({ type: 'signin', name: 'Grace', email: 'grace@x.com' }); // queued (phase complete)
-console.assert(s.queued?.name === 'Grace', 'Grace queued');
+console.log('\n--- queue: multiple sign-ins accumulate; next advances the line ---');
+// We're in `complete` from the flow above. Two people sign up while busy.
+step({ type: 'signin', name: 'Grace Hopper', email: 'grace@x.com' });
+step({ type: 'signin', name: 'Alan Turing', email: 'alan@x.com' });
+console.assert(s.queue.length === 2, 'two queued');
+console.assert(s.queue[0].name === 'Grace Hopper', 'FIFO order');
+// Done / Call next -> promote the front of the line into ready.
+step({ type: 'next' });
+console.assert(s.phase === 'ready' && s.founder?.name === 'Grace Hopper', 'next promotes Grace');
+console.assert(s.queue.length === 1 && s.queue[0].name === 'Alan Turing', 'Alan still waiting');
+console.assert(!!s.founder?.id, 'founder has an id');
+
+console.log('\n--- reset cancels current but keeps the queue ---');
 step({ type: 'reset' });
-console.assert(s.phase === 'ready' && s.founder?.name === 'Grace', 'reset promotes queue');
+console.assert(s.phase === 'idle', 'reset -> idle');
+console.assert(s.queue.length === 1 && s.queue[0].name === 'Alan Turing', 'queue preserved on reset');
+
+console.log('\n--- signin while idle promotes the front of the line ---');
+step({ type: 'signin', name: 'Katherine Johnson', email: 'kj@x.com' });
+console.assert(s.phase === 'ready' && s.founder?.name === 'Alan Turing', 'idle signin promotes front (Alan)');
+console.assert(s.queue.length === 1 && s.queue[0].name === 'Katherine Johnson', 'Katherine now waiting');
+
+console.log('\n--- dequeue removes from the line ---');
+const kjId = s.queue[0].id;
+step({ type: 'dequeue', id: kjId });
+console.assert(s.queue.length === 0, 'dequeue removed Katherine');
+
+console.log('\n--- emergency stop keeps the queue ---');
+step({ type: 'signin', name: 'Grace Two', email: 'g2@x.com' }); // queues (busy: Alan is ready)
+console.assert(s.queue.length === 1, 'Grace Two queued while busy');
+step({ type: 'stop' });
+console.assert(s.phase === 'idle', 'stop -> idle');
+console.assert(s.queue.length === 1, 'stop keeps the queue');
 
 console.log('\n--- skip bumps skipSignal (agent nudge signal) ---');
 let sk: SessionState = initialState();

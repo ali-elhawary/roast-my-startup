@@ -3,7 +3,7 @@ import { useSession } from '@/lib/ws';
 import { useNow } from '@/lib/useNow';
 import { BoothAgentProvider, useBoothAgent } from '@/lib/agent';
 import { useVideoRecorder } from '@/lib/videoRecorder';
-import { QUESTIONS, QUESTION_TIMEOUT_MS } from '@shared/constants';
+import { QUESTIONS, QUESTION_TIMEOUT_MS, SYNC_CALIBRATION_MS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
 
 // Small screen in front of the founder. Owns the live ElevenLabs session.
@@ -96,16 +96,29 @@ function StationInner() {
       clearTeardownTimers();
       startedFor.current = state.sessionId;
       lastSkipSignal.current = state.skipSignal;
-      liveMetaRef.current = {
-        sessionId: state.sessionId,
-        conversationStartMs: Date.now(),
-      };
-      start().catch((err) =>
-        sendCommand({ type: 'agentError', message: String(err) }),
-      );
+      // conversationStartMs is filled in when the agent actually connects (see
+      // the effect below) — the ElevenLabs recording's t=0 is the connect
+      // moment, not this start() call, which is ~1-1.5s earlier.
+      liveMetaRef.current = { sessionId: state.sessionId, conversationStartMs: 0 };
+      // Retry once before surfacing the error (transient getUserMedia / signed-
+      // url / connect hiccup).
+      start()
+        .catch(async () => {
+          await new Promise((r) => setTimeout(r, 800));
+          return start();
+        })
+        .catch((err) => sendCommand({ type: 'agentError', message: String(err) }));
       if (videoEnabled) void startVideo();
     }
   }, [state, kioskReady, start, sendCommand, clearTeardownTimers, videoEnabled, startVideo]);
+
+  // Stamp the real conversation start when the agent connects, so the video
+  // audio + captions align to the founder's face (not ~1.5s early).
+  useEffect(() => {
+    if (status === 'connected' && liveMetaRef.current && liveMetaRef.current.conversationStartMs === 0) {
+      liveMetaRef.current.conversationStartMs = Date.now() + SYNC_CALIBRATION_MS;
+    }
+  }, [status]);
 
   // Tear down the live ElevenLabs session when it ends. Two very different cases:
   //  - `idle` (emergency stop / reset): end the call immediately, even mid-roast.
@@ -248,10 +261,15 @@ function StationInner() {
       content = (
         <Center>
           <div className="text-center">
-            <div className="text-5xl font-black text-accent">Ready when you are</div>
-            {state.founder && (
-              <div className="mt-4 text-3xl text-ink-200">{state.founder.name}</div>
-            )}
+            <div className="text-4xl font-bold text-ink-200">
+              You&rsquo;re up{state.founder ? `, ${state.founder.name}` : ''}
+            </div>
+            <button
+              className="mt-10 rounded-2xl bg-accent px-16 py-8 text-4xl font-black text-ink-900"
+              onClick={() => sendCommand({ type: 'start' })}
+            >
+              Begin
+            </button>
           </div>
         </Center>
       );
@@ -271,10 +289,16 @@ function StationInner() {
       content = (
         <Center>
           <div className="text-center">
-            <div className="text-5xl font-black">Thanks &mdash; check your email</div>
+            <div className="text-5xl font-black">Thanks &mdash; that&rsquo;s a wrap</div>
             <div className="mt-4 text-2xl text-ink-400">
               Your {videoEnabled ? 'video' : 'recording'} is on its way.
             </div>
+            <button
+              className="mt-10 rounded-xl bg-ink-600 px-10 py-5 text-2xl font-bold text-ink-100 hover:bg-ink-400"
+              onClick={() => sendCommand({ type: 'next' })}
+            >
+              Done &mdash; next founder
+            </button>
           </div>
         </Center>
       );

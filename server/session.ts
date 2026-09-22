@@ -46,7 +46,7 @@ export function dispatch(command: Command) {
 
   // If the operator intervenes, cancel any running fake session so its pending
   // timers don't fight the new state.
-  if (command.type === 'reset' || command.type === 'stop') {
+  if (command.type === 'reset' || command.type === 'stop' || command.type === 'next') {
     cancelFakeSession();
   }
 

@@ -24,6 +24,7 @@ router.post(
     const offsetMs = Number(req.query.offsetMs ?? 0) || 0;
     const founder: Founder | null = req.query.email
       ? {
+          id: strOrNull(req.query.founderId) ?? 'upload',
           name: strOrNull(req.query.name) ?? '',
           email: String(req.query.email),
           consentAt: Number(req.query.consentAt ?? Date.now()) || Date.now(),

@@ -31,12 +31,16 @@ export function WsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    let backoff = 1000; // grows on repeated failures, resets on a clean open
 
     function connect() {
       const ws = new WebSocket(wsUrl());
       wsRef.current = ws;
 
-      ws.onopen = () => setConnected(true);
+      ws.onopen = () => {
+        setConnected(true);
+        backoff = 1000; // healthy again
+      };
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data) as ServerMessage;
@@ -48,7 +52,10 @@ export function WsProvider({ children }: { children: ReactNode }) {
       ws.onerror = () => ws.close();
       ws.onclose = () => {
         setConnected(false);
-        if (!closed) reconnectTimer = setTimeout(connect, 1000);
+        if (!closed) {
+          reconnectTimer = setTimeout(connect, backoff);
+          backoff = Math.min(backoff * 2, 10000); // cap at 10s
+        }
       };
     }
 

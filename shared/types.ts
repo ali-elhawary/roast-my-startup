@@ -18,10 +18,15 @@ export type RoastSource = 'generated' | 'fallback';
 export type SessionSource = 'live' | 'fake' | null;
 
 export type Founder = {
+  id: string;
   name: string;
   email: string;
   consentAt: number;
 };
+
+// A founder waiting in line. Carries the session source so promotion preserves
+// live-vs-fake (so /station doesn't try to start a real agent for a fake run).
+export type QueuedFounder = Founder & { source: SessionSource };
 
 export type Roast = {
   text: string;
@@ -36,7 +41,7 @@ export type SessionState = {
   sessionSource: SessionSource;
   paused: boolean;
   founder: Founder | null;
-  queued: Founder | null; // next founder signed in while the booth is busy
+  queue: QueuedFounder[]; // waiting line; sign-ups accumulate here
   answers: {
     building: string;
     audience: string;
@@ -68,12 +73,14 @@ export type Command =
   | { type: 'answer'; index: 1 | 2 | 3; text: string }
   | { type: 'roast'; text: string; category: string; source: RoastSource }
   | { type: 'complete' }
+  | { type: 'next' } // Done / Call next: end current, promote next in line
+  | { type: 'dequeue'; id: string } // operator removes someone from the line
   | { type: 'skip' } // operator (or timeout) skips the current question
   | { type: 'skipRoast' } // operator hands the founder to the Startups rep
   | { type: 'pause' }
   | { type: 'resume' }
-  | { type: 'reset' }
-  | { type: 'stop' } // emergency stop -> idle
+  | { type: 'reset' } // cancel current -> idle, keep the queue
+  | { type: 'stop' } // emergency stop -> idle, keep the queue
   | { type: 'agentError'; message: string }
   | { type: 'videoStatus'; status: 'recording' | 'uploading' | 'uploaded' | 'error' };
 

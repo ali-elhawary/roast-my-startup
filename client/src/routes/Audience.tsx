@@ -12,23 +12,46 @@ export default function Audience() {
   const { state } = useSession();
   if (!state) return <Center>Connecting&hellip;</Center>;
 
+  let content: React.ReactNode;
   switch (state.phase) {
-    case 'idle':
-      return <Attract />;
     case 'ready':
     case 'q1':
     case 'q2':
     case 'q3':
-      return <Questions state={state} />;
+      content = <Questions state={state} />;
+      break;
     case 'generating':
-      return <Generating />;
+      content = <Generating />;
+      break;
     case 'roasting':
-      return <Roasting state={state} />;
+      content = <Roasting state={state} />;
+      break;
     case 'complete':
-      return <RoastCard state={state} />;
+      content = <RoastCard state={state} />;
+      break;
+    case 'idle':
     default:
-      return <Attract />;
+      content = <Attract />;
   }
+
+  return (
+    <>
+      {content}
+      <NextUp state={state} />
+    </>
+  );
+}
+
+function NextUp({ state }: { state: SessionState }) {
+  if (state.queue.length === 0) return null;
+  const firstName = state.queue[0].name.trim().split(/\s+/)[0];
+  return (
+    <div className="fixed bottom-4 right-4 z-10 rounded-full bg-ink-800/85 px-5 py-2 text-2xl">
+      <span className="text-ink-400">Next up: </span>
+      <span className="font-bold text-ink-100">{firstName}</span>
+      <span className="text-ink-400"> &middot; {state.queue.length} in line</span>
+    </div>
+  );
 }
 
 function Center({ children }: { children: React.ReactNode }) {

@@ -99,12 +99,46 @@ export default function Operator() {
       <div className="grid grid-cols-2 gap-4">
         <Info label="Founder" value={state.founder?.name ?? '\u2014'} />
         <Info label="Email" value={state.founder?.email ?? '\u2014'} />
-        <Info label="Queued next" value={state.queued?.name ?? '\u2014'} />
         <Info
           label="Roast source"
           value={state.roast ? state.roast.source : '\u2014'}
         />
         <Info label="Video" value={state.videoStatus ?? '\u2014'} />
+      </div>
+
+      {/* Waiting line */}
+      <div className="rounded-lg border border-ink-600 bg-ink-800 p-4 text-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wide text-ink-400">
+            Waiting line ({state.queue.length})
+          </span>
+          <button
+            className="rounded bg-ink-600 px-3 py-1 text-xs font-bold text-ink-100 hover:bg-ink-400 disabled:bg-ink-700 disabled:text-ink-400"
+            onClick={() => send({ type: 'next' })}
+            disabled={state.queue.length === 0}
+          >
+            Call next &rarr;
+          </button>
+        </div>
+        {state.queue.length === 0 ? (
+          <div className="text-ink-400">Nobody waiting.</div>
+        ) : (
+          <ol className="space-y-1">
+            {state.queue.map((f, i) => (
+              <li key={f.id} className="flex items-center gap-3">
+                <span className="w-5 shrink-0 text-ink-400">{i + 1}.</span>
+                <span className="flex-1 truncate text-ink-100">{f.name}</span>
+                <span className="truncate text-ink-400">{f.email}</span>
+                <button
+                  className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-500/10"
+                  onClick={() => send({ type: 'dequeue', id: f.id })}
+                >
+                  remove
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       <div className="rounded-lg border border-ink-600 bg-ink-800 p-4 text-sm">
