@@ -22,7 +22,7 @@ export default function Panel() {
   return (
     <div className="flex h-full flex-col px-12 py-10">
       <div className="flex items-center justify-between">
-        <Brand className="text-xl" />
+        <Brand height={24} />
         <div className="text-xl text-ink-200">
           <span className="font-extrabold text-accent">{total}</span> roasted today
         </div>

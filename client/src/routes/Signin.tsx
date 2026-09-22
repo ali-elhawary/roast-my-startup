@@ -76,7 +76,7 @@ export default function Signin() {
         : 'Take a seat when you\u2019re called.';
     return (
       <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-        <Brand className="mb-10 text-lg" />
+        <Brand className="mb-10" height={20} />
         <div className="text-5xl font-extrabold text-accent">You're in, {name.trim()}.</div>
         <p className="mt-6 max-w-xl text-2xl text-ink-200">{lineMsg}</p>
         <button
@@ -97,7 +97,7 @@ export default function Signin() {
 
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col justify-center px-8">
-      <Brand className="mb-8 text-lg" />
+      <Brand className="mb-8" height={20} />
       <h1 className="text-4xl font-extrabold tracking-tight">Roast My Startup</h1>
       <p className="mt-2 text-xl text-ink-200">
         Three questions. One roast. Two minutes.

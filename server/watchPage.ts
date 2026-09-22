@@ -18,8 +18,10 @@ export function watchPage(sessionId: string): string {
       font-family: system-ui, -apple-system, Segoe UI, sans-serif;
       display: flex; min-height: 100vh; flex-direction: column;
       align-items: center; justify-content: center; padding: 24px; gap: 20px; }
-    .brand { font-weight: 800; letter-spacing: -0.01em; color: #a8a8b3; }
-    .brand b { color: #d8d8de; }
+    .brand { display: inline-flex; align-items: center; gap: 14px;
+      background: #fff; border-radius: 12px; padding: 8px 16px; }
+    .brand img { height: 26px; width: auto; display: block; }
+    .brand .divider { width: 1px; height: 26px; background: #c9c9d0; }
     h1 { font-size: 1.5rem; margin: 0; text-align: center; }
     .accent { color: #39FF6A; }
     video { width: min(100%, 900px); border-radius: 12px; background: #000;
@@ -35,7 +37,13 @@ export function watchPage(sessionId: string): string {
   </style>
 </head>
 <body>
-  <div class="brand"><b>MongoDB</b> &times; <b>Google</b> &times; <b>ElevenLabs</b></div>
+  <div class="brand">
+    <img src="/logos/mongodb.png" alt="MongoDB" />
+    <span class="divider"></span>
+    <img src="/logos/google-cloud.jpg" alt="Google Cloud" />
+    <span class="divider"></span>
+    <img src="/logos/elevenlabs.png" alt="ElevenLabs" />
+  </div>
   <h1>Your <span class="accent">roast</span>, on the record.</h1>
   <video controls playsinline preload="metadata">
     <source src="${mp4}" type="video/mp4" />
