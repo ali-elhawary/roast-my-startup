@@ -1,6 +1,42 @@
 import { useState } from 'react';
 import { useSession } from '@/lib/ws';
 import { Brand } from '@/lib/Brand';
+import type { SessionState } from '@shared/types';
+
+function firstNameOf(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+// Live waiting-line panel shown alongside the sign-up form.
+function LinePanel({ state }: { state: SessionState | null }) {
+  if (!state) return null;
+  const nowRoasting = state.phase !== 'idle' && state.founder ? state.founder : null;
+  return (
+    <div className="fixed right-4 top-4 w-64 rounded-xl border border-ink-600 bg-ink-800/85 p-4">
+      <div className="text-xs uppercase tracking-wide text-ink-400">
+        Waiting line ({state.queue.length})
+      </div>
+      {nowRoasting && (
+        <div className="mt-2 text-sm">
+          <span className="text-ink-400">Now roasting: </span>
+          <span className="font-bold text-accent">{firstNameOf(nowRoasting.name)}</span>
+        </div>
+      )}
+      {state.queue.length === 0 ? (
+        <div className="mt-3 text-sm text-ink-400">No one waiting yet.</div>
+      ) : (
+        <ol className="mt-3 space-y-1 text-sm">
+          {state.queue.map((f, i) => (
+            <li key={f.id} className="flex gap-2">
+              <span className="w-4 shrink-0 text-ink-400">{i + 1}.</span>
+              <span className="truncate text-ink-100">{firstNameOf(f.name)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
 
 // Placeholder T&C body — replace with the real MongoDB-approved copy.
 const TERMS_LOREM =
@@ -54,6 +90,7 @@ export default function Signin() {
         >
           Sign in another founder
         </button>
+        <LinePanel state={state} />
       </div>
     );
   }
@@ -123,6 +160,7 @@ export default function Signin() {
       <div className="mt-6 text-xs text-ink-400">
         {connected ? 'Connected' : 'Reconnecting\u2026'}
       </div>
+      <LinePanel state={state} />
     </div>
   );
 }

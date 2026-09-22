@@ -170,6 +170,12 @@ export default function Operator() {
         >
           Skip roast &rarr; rep
         </Btn>
+        <Btn
+          onClick={() => send({ type: 'restart' })}
+          disabled={['idle', 'complete'].includes(state.phase)}
+        >
+          Restart roast
+        </Btn>
         <Btn onClick={() => send({ type: 'reset' })}>Reset</Btn>
         <Btn onClick={() => send({ type: 'stop' })} danger>
           Emergency stop

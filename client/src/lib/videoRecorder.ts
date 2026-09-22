@@ -81,6 +81,21 @@ export function useVideoRecorder() {
     }
   }, [deviceId]);
 
+  // Abandon the current recording without uploading (operator restart / discard).
+  const discard = useCallback(() => {
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    try {
+      recorder?.stop();
+    } catch {
+      /* ignore */
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    chunksRef.current = [];
+    setStatus('idle');
+  }, []);
+
   const stopAndUpload = useCallback(async (meta: UploadMeta) => {
     const recorder = recorderRef.current;
     recorderRef.current = null;
@@ -149,5 +164,6 @@ export function useVideoRecorder() {
     enumerate,
     start,
     stopAndUpload,
+    discard,
   };
 }

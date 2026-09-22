@@ -72,6 +72,29 @@ step({ type: 'stop' });
 console.assert(s.phase === 'idle', 'stop -> idle');
 console.assert(s.queue.length === 1, 'stop keeps the queue');
 
+console.log('\n--- restart re-begins the same founder, keeps queue/stats ---');
+let r: SessionState = initialState();
+let tr = 1_000;
+const stepR = (c: Command) => { tr += 1_000; r = reduce(r, c, tr); };
+stepR({ type: 'signin', name: 'Rex Founder', email: 'rex@x.com' }); // idle -> ready (Rex)
+stepR({ type: 'signin', name: 'Backup Person', email: 'backup@x.com' }); // queues
+stepR({ type: 'start' });
+stepR({ type: 'answer', index: 1, text: 'a thing' }); // q2, building recorded
+const rsBefore = r.restartSignal;
+const sessBefore = r.sessionId;
+stepR({ type: 'restart' });
+console.assert(r.phase === 'ready', 'restart -> ready');
+console.assert(r.founder?.email === 'rex@x.com', 'restart keeps same founder');
+console.assert(r.answers.building === '', 'restart wipes answers');
+console.assert(r.restartSignal === rsBefore + 1, 'restart bumps restartSignal');
+console.assert(r.sessionId !== sessBefore, 'restart -> new sessionId');
+console.assert(r.queue.length === 1 && r.queue[0].name === 'Backup Person', 'restart keeps the queue');
+// no-op from idle
+stepR({ type: 'reset' });
+const rsIdle = r.restartSignal;
+stepR({ type: 'restart' });
+console.assert(r.phase === 'idle' && r.restartSignal === rsIdle, 'restart is a no-op from idle');
+
 console.log('\n--- skip bumps skipSignal (agent nudge signal) ---');
 let sk: SessionState = initialState();
 let tk = 1000;

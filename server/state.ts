@@ -43,16 +43,20 @@ export function initialState(): SessionState {
     phaseStartedAt: null,
     error: null,
     skipSignal: 0,
+    restartSignal: 0,
     videoStatus: null,
     stats: { sessionsToday: 0, byCategory: {} },
   };
 }
 
-// Return to `idle`, preserving cumulative stats AND the waiting line.
+// Return to `idle`, preserving cumulative stats, the waiting line, and the
+// monotonic restartSignal (so /station never mistakes a new session for a
+// restart).
 function idleState(prev: SessionState): SessionState {
   const s = initialState();
   s.stats = prev.stats;
   s.queue = prev.queue;
+  s.restartSignal = prev.restartSignal;
   return s;
 }
 
@@ -210,6 +214,25 @@ export function reduce(
       // Done / Call next / safety timeout: end the current session and pull the
       // next founder into `ready` (or idle if the line is empty).
       return promoteNext(state, now);
+    }
+
+    case 'restart': {
+      // Operator redo: discard the current (broken) attempt and re-begin the
+      // SAME founder from `ready`. Only during an active session — nothing was
+      // saved/emailed yet, so the server-side discard is automatic. Bump
+      // restartSignal so /station tears down the agent + drops the recording.
+      if (state.phase === 'idle' || state.phase === 'complete' || !state.founder) {
+        return state;
+      }
+      const f = state.founder;
+      const entry: QueuedFounder = {
+        id: f.id,
+        name: f.name,
+        email: f.email,
+        consentAt: f.consentAt,
+        source: state.sessionSource ?? 'live',
+      };
+      return { ...beginSession(state, entry, now), restartSignal: state.restartSignal + 1 };
     }
 
     case 'dequeue': {

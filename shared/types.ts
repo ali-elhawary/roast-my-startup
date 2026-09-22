@@ -54,6 +54,9 @@ export type SessionState = {
   // it to nudge the live agent to move on, so the conversation and the app phase
   // stay in sync. Agent-driven advances (captureAnswer) do NOT bump it.
   skipSignal: number;
+  // Increments on `restart`. /station watches it to tear down the current agent
+  // session and discard the in-progress recording, then wait for a fresh Begin.
+  restartSignal: number;
   // Reported by /station's video recorder so /operator can see capture/upload
   // status live. Null when not recording video.
   videoStatus: 'recording' | 'uploading' | 'uploaded' | 'error' | null;
@@ -74,6 +77,7 @@ export type Command =
   | { type: 'roast'; text: string; category: string; source: RoastSource }
   | { type: 'complete' }
   | { type: 'next' } // Done / Call next: end current, promote next in line
+  | { type: 'restart' } // operator restarts the current founder's roast (discard broken attempt)
   | { type: 'dequeue'; id: string } // operator removes someone from the line
   | { type: 'skip' } // operator (or timeout) skips the current question
   | { type: 'skipRoast' } // operator hands the founder to the Startups rep

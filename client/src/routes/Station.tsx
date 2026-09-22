@@ -38,11 +38,13 @@ function StationInner() {
     enumerate: enumerateCameras,
     start: startVideo,
     stopAndUpload: stopVideo,
+    discard: discardVideo,
   } = useVideoRecorder();
   const [kioskReady, setKioskReady] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const startedFor = useRef<string | null>(null);
   const lastSkipSignal = useRef(0);
+  const lastRestartSignal = useRef(0);
   // Pending timers for the natural `complete` teardown (see the effect below).
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,6 +113,21 @@ function StationInner() {
       if (videoEnabled) void startVideo();
     }
   }, [state, kioskReady, start, sendCommand, clearTeardownTimers, videoEnabled, startVideo]);
+
+  // Operator restart: abandon the current agent session + in-progress recording
+  // (discard, do NOT upload), then wait for a fresh Begin. restartSignal is
+  // monotonic, so any increase is a genuine restart.
+  const restartSignal = state?.restartSignal ?? 0;
+  useEffect(() => {
+    if (restartSignal > lastRestartSignal.current) {
+      lastRestartSignal.current = restartSignal;
+      clearTeardownTimers();
+      startedFor.current = null;
+      liveMetaRef.current = null;
+      void stop();
+      if (videoEnabled) discardVideo();
+    }
+  }, [restartSignal, clearTeardownTimers, stop, videoEnabled, discardVideo]);
 
   // Stamp the real conversation start when the agent connects, so the video
   // audio + captions align to the founder's face (not ~1.5s early).
