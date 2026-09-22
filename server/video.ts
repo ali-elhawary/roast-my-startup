@@ -69,7 +69,11 @@ export async function processSessionVideo(input: ProcessVideoInput): Promise<voi
     // 4. Captions from the transcript (chunked so they don't cover the frame).
     let hasCaptions = false;
     if (details && details.transcript.length) {
-      await fs.writeFile(vttPath, buildVtt(details.transcript, input.offsetMs), 'utf8');
+      await fs.writeFile(
+        vttPath,
+        buildVtt(details.transcript, input.offsetMs, details.callDurationSecs),
+        'utf8',
+      );
       hasCaptions = true;
     }
 
@@ -184,16 +188,22 @@ async function waitForConversation(conversationId: string): Promise<Conversation
   return last; // done-without-audio (mic fallback + captions) or null
 }
 
-const MAX_WORDS_PER_CUE = 9; // ~8-10 words per caption
+const MAX_WORDS_PER_CUE = 12; // ~12 words per caption
 const MIN_CUE_SEC = 0.8;
 const WPM = 150; // fallback pacing for the last turn (no next-turn boundary)
 
 // Turn the transcript into a WebVTT track. Each turn is split into short cues
-// (~8-10 words) spread across the turn's time window, so captions change every
-// couple seconds instead of dumping a whole paragraph on the frame. Timing
-// within a turn is estimated (no per-word timestamps from ElevenLabs).
-export function buildVtt(turns: TranscriptTurn[], offsetMs: number): string {
+// spread across the turn's time window, so captions change every couple seconds
+// instead of dumping a whole paragraph on the frame. The LAST turn (the roast)
+// is bounded to the real audio end (callDurationSecs) so its captions track the
+// spoken pace instead of racing ahead on a word-count estimate.
+export function buildVtt(
+  turns: TranscriptTurn[],
+  offsetMs: number,
+  callDurationSecs?: number | null,
+): string {
   const offsetSec = offsetMs / 1000;
+  const audioEnd = callDurationSecs != null ? callDurationSecs + offsetSec : null;
   const lines = ['WEBVTT', ''];
 
   for (let i = 0; i < turns.length; i++) {
@@ -202,10 +212,15 @@ export function buildVtt(turns: TranscriptTurn[], offsetMs: number): string {
     if (!words.length) continue;
 
     const turnStart = Math.max(0, turn.timeInCallSecs + offsetSec);
-    const nextStart = i + 1 < turns.length ? turns[i + 1].timeInCallSecs + offsetSec : null;
+    const isLast = i + 1 >= turns.length;
+    const nextStart = !isLast ? turns[i + 1].timeInCallSecs + offsetSec : null;
+    // Last turn: end at the real audio end when known; otherwise estimate.
     const estDur = Math.max(MIN_CUE_SEC, (words.length / WPM) * 60);
-    const turnEnd =
-      nextStart != null ? Math.max(turnStart + MIN_CUE_SEC, nextStart) : turnStart + estDur;
+    const turnEnd = !isLast
+      ? Math.max(turnStart + MIN_CUE_SEC, nextStart!)
+      : audioEnd != null
+        ? Math.max(turnStart + MIN_CUE_SEC, audioEnd)
+        : turnStart + estDur;
     const duration = Math.max(MIN_CUE_SEC, turnEnd - turnStart);
 
     const chunks = chunkWords(words, MAX_WORDS_PER_CUE);

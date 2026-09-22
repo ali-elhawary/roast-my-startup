@@ -13,12 +13,19 @@ import {
   useConversationStatus,
   useConversationClientTool,
 } from '@elevenlabs/react';
-import { useCallback, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Command, Phase } from '@shared/types';
 import { validateRoast } from '@shared/validate';
 import { useSession } from '@/lib/ws';
 
 type SendCommand = (command: Command) => void;
+
+// The agent calls sessionComplete at generation time — usually near the START of
+// speaking the roast — so we hold the app's `complete` transition until it has
+// actually been silent for COMPLETE_SETTLE_MS. That keeps the whole roast on
+// screen and in the recording. COMPLETE_MAX_WAIT_MS is a safety cap.
+const COMPLETE_SETTLE_MS = 2_500;
+const COMPLETE_MAX_WAIT_MS = 90_000;
 
 export function BoothAgentProvider({
   children,
@@ -59,7 +66,43 @@ function indexForPhase(phase: Phase | undefined): 1 | 2 | 3 {
 
 function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
   const { state } = useSession();
+  const { isSpeaking } = useConversationMode();
   const pendingFallback = useRef(false);
+  const [awaitingComplete, setAwaitingComplete] = useState(false);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSettle = () => {
+    if (settleTimer.current) {
+      clearTimeout(settleTimer.current);
+      settleTimer.current = null;
+    }
+  };
+  const fireComplete = useCallback(() => {
+    clearSettle();
+    setAwaitingComplete(false);
+    sendCommand({ type: 'complete' });
+  }, [sendCommand]);
+
+  // Safety cap: never wait forever for silence.
+  useEffect(() => {
+    if (!awaitingComplete) return;
+    const cap = setTimeout(fireComplete, COMPLETE_MAX_WAIT_MS);
+    return () => clearTimeout(cap);
+  }, [awaitingComplete, fireComplete]);
+
+  // Once the agent has been silent for COMPLETE_SETTLE_MS, advance to complete.
+  // Resets if speech resumes (dramatic pause mid-roast).
+  useEffect(() => {
+    if (!awaitingComplete) return;
+    if (isSpeaking) {
+      clearSettle();
+      return;
+    }
+    if (!settleTimer.current) {
+      settleTimer.current = setTimeout(fireComplete, COMPLETE_SETTLE_MS);
+    }
+    return () => clearSettle();
+  }, [awaitingComplete, isSpeaking, fireComplete]);
 
   useConversationClientTool('captureAnswer', (parameters) => {
     const text = String((parameters as { text?: string }).text ?? '');
@@ -90,7 +133,8 @@ function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
 
   useConversationClientTool('sessionComplete', () => {
     pendingFallback.current = false;
-    sendCommand({ type: 'complete' });
+    // Don't advance yet — wait for the agent to finish speaking the roast.
+    setAwaitingComplete(true);
     return 'ok';
   });
 

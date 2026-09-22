@@ -14,6 +14,7 @@ export type ConversationDetails = {
   status: string; // 'processing' | 'done' | ...
   hasAudio: boolean;
   transcript: TranscriptTurn[];
+  callDurationSecs: number | null; // real audio length, for caption timing
 };
 
 export async function fetchConversationDetails(
@@ -29,6 +30,7 @@ export async function fetchConversationDetails(
     status?: string;
     has_audio?: boolean;
     transcript?: Array<{ role?: string; message?: string | null; time_in_call_secs?: number }>;
+    metadata?: { call_duration_secs?: number };
   };
   const transcript: TranscriptTurn[] = (d.transcript ?? [])
     .map((t) => ({
@@ -41,6 +43,7 @@ export async function fetchConversationDetails(
     status: d.status ?? 'unknown',
     hasAudio: !!d.has_audio,
     transcript,
+    callDurationSecs: d.metadata?.call_duration_secs ?? null,
   };
 }
 
