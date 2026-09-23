@@ -13,19 +13,26 @@ import {
   useConversationStatus,
   useConversationClientTool,
 } from '@elevenlabs/react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { Command, Phase } from '@shared/types';
 import { validateRoast } from '@shared/validate';
 import { useSession } from '@/lib/ws';
 
 type SendCommand = (command: Command) => void;
 
-// The agent calls sessionComplete at generation time — usually near the START of
-// speaking the roast — so we hold the app's `complete` transition until it has
-// actually been silent for COMPLETE_SETTLE_MS. That keeps the whole roast on
-// screen and in the recording. COMPLETE_MAX_WAIT_MS is a safety cap.
-const COMPLETE_SETTLE_MS = 2_500;
-const COMPLETE_MAX_WAIT_MS = 90_000;
+// Completion timing. We can't trust the agent to reliably call sessionComplete
+// after the closing line (LLM tool calls are flaky and the closing line reads as
+// a natural turn end), and the SDK's isSpeaking flag jitters — so completion is
+// armed off the RELIABLE blocking deliverRoast call and driven by a single
+// jitter-tolerant poller. It completes on sustained silence after speech, with an
+// estimate-based backstop if silence is never detected, and a hard cap as the
+// ultimate safety. The server also has a roasting-phase backstop.
+const COMPLETE_SETTLE_MS = 3_000; // continuous silence after speech -> done
+const COMPLETE_TAIL_MS = 2_000; // pad so the recording covers the last words
+const COMPLETE_MAX_WAIT_MS = 100_000; // absolute cap from arming
+const NO_SPEECH_MS = 15_000; // armed but the agent never spoke (TTS failed)
+const MIN_WORDS_PER_SEC = 2.2; // conservative pace for the estimate backstop
+const CLOSING_LINE_WORDS = 25; // rough closing-line length added to the estimate
 
 export function BoothAgentProvider({
   children,
@@ -68,41 +75,87 @@ function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
   const { state } = useSession();
   const { isSpeaking } = useConversationMode();
   const pendingFallback = useRef(false);
-  const [awaitingComplete, setAwaitingComplete] = useState(false);
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearSettle = () => {
-    if (settleTimer.current) {
-      clearTimeout(settleTimer.current);
-      settleTimer.current = null;
-    }
-  };
+  // Completion tracking (all refs so the poller reads live values without
+  // re-subscribing). Armed by deliverRoast; sessionComplete is a redundant hint.
+  const armedAtRef = useRef<number | null>(null);
+  const speakStartRef = useRef<number | null>(null);
+  const lastSpeakingAtRef = useRef<number>(0);
+  const isSpeakingRef = useRef(false);
+  const estSpokenMsRef = useRef<number>(0);
+  const firedRef = useRef(false);
+
+  const armComplete = useCallback((roastWords: number) => {
+    if (armedAtRef.current != null) return; // already armed this session
+    armedAtRef.current = Date.now();
+    firedRef.current = false;
+    estSpokenMsRef.current =
+      ((roastWords + CLOSING_LINE_WORDS) / MIN_WORDS_PER_SEC) * 1000;
+  }, []);
+
   const fireComplete = useCallback(() => {
-    clearSettle();
-    setAwaitingComplete(false);
+    if (firedRef.current) return;
+    firedRef.current = true;
     sendCommand({ type: 'complete' });
   }, [sendCommand]);
 
-  // Safety cap: never wait forever for silence.
+  // Track speech. Store the last-speaking timestamp instead of resetting a timer,
+  // so VAD flicker during silence can't stall completion.
   useEffect(() => {
-    if (!awaitingComplete) return;
-    const cap = setTimeout(fireComplete, COMPLETE_MAX_WAIT_MS);
-    return () => clearTimeout(cap);
-  }, [awaitingComplete, fireComplete]);
-
-  // Once the agent has been silent for COMPLETE_SETTLE_MS, advance to complete.
-  // Resets if speech resumes (dramatic pause mid-roast).
-  useEffect(() => {
-    if (!awaitingComplete) return;
+    isSpeakingRef.current = isSpeaking;
     if (isSpeaking) {
-      clearSettle();
-      return;
+      lastSpeakingAtRef.current = Date.now();
+      if (speakStartRef.current == null && armedAtRef.current != null) {
+        speakStartRef.current = Date.now();
+      }
     }
-    if (!settleTimer.current) {
-      settleTimer.current = setTimeout(fireComplete, COMPLETE_SETTLE_MS);
+  }, [isSpeaking]);
+
+  // Single poller decides when to complete. Mounted once; reads refs.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const armedAt = armedAtRef.current;
+      if (armedAt == null || firedRef.current) return;
+      const now = Date.now();
+      const sinceArmed = now - armedAt;
+      const speakStart = speakStartRef.current;
+
+      if (speakStart != null) {
+        // Primary: sustained silence after the agent has actually spoken.
+        const silentFor = now - lastSpeakingAtRef.current;
+        if (!isSpeakingRef.current && silentFor >= COMPLETE_SETTLE_MS) {
+          fireComplete();
+          return;
+        }
+        // Backstop: silence never detected (isSpeaking stuck) -> estimated end.
+        if (now - speakStart >= estSpokenMsRef.current + COMPLETE_TAIL_MS) {
+          fireComplete();
+          return;
+        }
+      } else if (sinceArmed >= NO_SPEECH_MS) {
+        // Armed but the agent never started speaking (TTS/connection failure).
+        fireComplete();
+        return;
+      }
+      // Absolute cap.
+      if (sinceArmed >= COMPLETE_MAX_WAIT_MS) fireComplete();
+    }, 500);
+    return () => clearInterval(id);
+  }, [fireComplete]);
+
+  // Reset tracking for the next founder (when the machine returns to an early
+  // phase) so stale arming can't complete the next session prematurely.
+  useEffect(() => {
+    const p = state?.phase;
+    if (p === 'idle' || p === 'ready' || p === 'q1') {
+      armedAtRef.current = null;
+      speakStartRef.current = null;
+      lastSpeakingAtRef.current = 0;
+      estSpokenMsRef.current = 0;
+      firedRef.current = false;
+      pendingFallback.current = false;
     }
-    return () => clearSettle();
-  }, [awaitingComplete, isSpeaking, fireComplete]);
+  }, [state?.phase]);
 
   useConversationClientTool('captureAnswer', (parameters) => {
     const text = String((parameters as { text?: string }).text ?? '');
@@ -128,13 +181,16 @@ function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
     const source = pendingFallback.current ? 'fallback' : 'generated';
     pendingFallback.current = false;
     sendCommand({ type: 'roast', text, category, source });
+    // Arm completion off this reliable blocking call — not the flaky trailing
+    // sessionComplete. The poller finishes the session when the agent goes quiet.
+    armComplete(text.trim().split(/\s+/).filter(Boolean).length);
     return 'approved';
   });
 
   useConversationClientTool('sessionComplete', () => {
     pendingFallback.current = false;
-    // Don't advance yet — wait for the agent to finish speaking the roast.
-    setAwaitingComplete(true);
+    // Redundant safety: if deliverRoast somehow didn't arm us, arm now.
+    if (armedAtRef.current == null) armComplete(0);
     return 'ok';
   });
 

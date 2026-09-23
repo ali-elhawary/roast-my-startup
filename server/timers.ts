@@ -8,6 +8,7 @@ import {
   GENERATION_TIMEOUT_MS,
   QUESTION_TIMEOUT_MS,
   READY_IDLE_TIMEOUT_MS,
+  ROASTING_SAFETY_TIMEOUT_MS,
 } from '../shared/constants';
 
 let handle: ReturnType<typeof setTimeout> | null = null;
@@ -47,6 +48,11 @@ export function reconcileTimers(
       dispatch({ type: 'agentError', message: 'Generation timed out' });
       dispatch({ type: 'complete' });
     });
+  } else if (state.phase === 'roasting') {
+    // Backstop: the client normally fires `complete` once the agent goes quiet
+    // after the roast + closing line. If it never arrives (e.g. the /station tab
+    // disconnected mid-roast), end the session so the chair can't hang.
+    schedule(ROASTING_SAFETY_TIMEOUT_MS, () => dispatch({ type: 'complete' }));
   } else if (state.phase === 'ready') {
     // Founder who's up never tapped Begin — skip the no-show to the next in line.
     schedule(READY_IDLE_TIMEOUT_MS, () => dispatch({ type: 'next' }));

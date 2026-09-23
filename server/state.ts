@@ -10,6 +10,7 @@ import type { Command, Phase, QueuedFounder, SessionState } from '../shared/type
 export {
   READY_IDLE_TIMEOUT_MS,
   COMPLETE_SAFETY_TIMEOUT_MS,
+  ROASTING_SAFETY_TIMEOUT_MS,
   QUESTION_TIMEOUT_MS,
   GENERATION_TIMEOUT_MS,
   GENERATING_WARN_MS,

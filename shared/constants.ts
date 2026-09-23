@@ -65,6 +65,11 @@ export const BANNED_WORDS = [
 // q1..q3, generating, or roasting.
 export const READY_IDLE_TIMEOUT_MS = 90_000;
 export const COMPLETE_SAFETY_TIMEOUT_MS = 150_000; // ~2.5 min backstop
+// Backstop for the `roasting` phase. Completion is normally driven client-side
+// (agent goes quiet after the roast + closing line). This server-side net only
+// fires if that never arrives — e.g. the /station tab disconnected mid-roast —
+// so the chair can't get stuck. Sized longer than any real roast + closing line.
+export const ROASTING_SAFETY_TIMEOUT_MS = 120_000;
 export const QUESTION_TIMEOUT_MS = 55_000; // per-question safety net (founder answer time)
 export const GENERATION_TIMEOUT_MS = 20_000; // hung-generation recovery
 export const GENERATING_WARN_MS = 6_000; // operator warning threshold
