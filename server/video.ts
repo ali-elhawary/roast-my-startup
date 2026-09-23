@@ -164,9 +164,10 @@ function runFfmpeg(args: string[]): Promise<void> {
 
 const VIDEO_ARGS = [
   '-c:v', 'libx264',
-  '-preset', 'veryfast',
+  '-preset', 'superfast', // booth turnaround > a few % of file size
   '-crf', '23',
   '-vf', 'scale=-2:720', // cap height at 720p, keep aspect (even width)
+  '-threads', '0', // use all cores
 ];
 const AUDIO_ARGS = ['-c:a', 'aac', '-b:a', '128k'];
 

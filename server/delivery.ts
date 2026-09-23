@@ -136,7 +136,10 @@ export async function deliverVideo(job: VideoDeliveryJob): Promise<void> {
     expiresAt,
   });
 
-  if (job.founder) {
+  // If the audio fallback already emailed this founder (a slow transcode that
+  // lost the race), don't double-send. The video objects + Atlas keys are still
+  // saved above, so the recording exists — we just skip the second email.
+  if (job.founder && !delivered.has(job.sessionId)) {
     await withRetry(
       () =>
         sendFollowUpEmail({
@@ -149,6 +152,10 @@ export async function deliverVideo(job: VideoDeliveryJob): Promise<void> {
           downloadUrl,
         }),
       { label: `email-video-${job.sessionId}` },
+    );
+  } else if (job.founder) {
+    console.log(
+      `[delivery] video ready for ${job.sessionId} but audio fallback already emailed; skipping duplicate`,
     );
   }
 

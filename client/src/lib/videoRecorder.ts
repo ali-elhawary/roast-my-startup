@@ -17,11 +17,16 @@ type UploadMeta = {
 };
 
 function pickMimeType(): string | '' {
+  // Order matters: prefer codecs that are cheap for the server to decode.
+  // H.264 (mp4) makes the transcode nearly a remux; VP8 decodes far faster than
+  // VP9. VP9 is last because 1080p/4K VP9 software decode is what pinned the
+  // booth VM's CPU for minutes. Unsupported entries are skipped automatically.
   const candidates = [
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm',
+    'video/mp4;codecs=h264,aac',
     'video/mp4',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9,opus',
+    'video/webm',
   ];
   if (typeof MediaRecorder === 'undefined') return '';
   for (const c of candidates) {
@@ -55,10 +60,18 @@ export function useVideoRecorder() {
   const start = useCallback(async () => {
     if (!VIDEO_ENABLED) return;
     try {
+      // Hard-cap the capture at 720p30. `ideal` alone is a soft hint that 4K
+      // webcams ignore, handing us a 2160p stream whose VP9 decode took minutes
+      // to transcode. `max` forces the camera down to the resolution we actually
+      // ship, so the transcode is fast.
+      const videoConstraints: MediaTrackConstraints = {
+        width: { ideal: 1280, max: 1280 },
+        height: { ideal: 720, max: 720 },
+        frameRate: { ideal: 30, max: 30 },
+      };
+      if (deviceId) videoConstraints.deviceId = { exact: deviceId };
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: deviceId
-          ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: videoConstraints,
         audio: true,
       });
       streamRef.current = stream;
