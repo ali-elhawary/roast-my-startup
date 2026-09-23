@@ -1,0 +1,25 @@
+# Caddyfile — TLS termination + reverse proxy for the Roast My Startup booth.
+#
+# Caddy fetches and auto-renews a real Let's Encrypt certificate for
+# {$ROAST_DOMAIN}, then reverse-proxies everything (static bundle, /api, and the
+# /ws WebSocket, which Caddy upgrades transparently) to the Node server on :3001.
+#
+# The two values below come from environment variables so this file never needs
+# editing. Set them on the caddy service via a systemd drop-in (see DEPLOY.md):
+#   ROAST_DOMAIN=<vm-ip-with-dots>.sslip.io   e.g. 34.86.12.34.sslip.io
+#   ACME_EMAIL=ali.elhawary@gcp.corp.mongodb.com
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$ROAST_DOMAIN} {
+	encode zstd gzip
+
+	# Match the server's express.raw 300 MB cap for /station video uploads.
+	request_body {
+		max_size 300MB
+	}
+
+	reverse_proxy localhost:3001
+}
