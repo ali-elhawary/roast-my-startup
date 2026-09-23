@@ -16,6 +16,9 @@ import {
 } from './elevenlabs';
 import { sessionsCollection } from './db';
 import { sendFollowUpEmail } from './email';
+import { isGcsEnabled } from './storage';
+import { deliverVideo, markDelivered } from './delivery';
+import { enqueueDelivery, type VideoDeliveryJob } from './deliveryQueue';
 
 export const VIDEOS_DIR = path.resolve(process.cwd(), 'videos');
 export const VIDEO_TTL_DAYS = 30;
@@ -77,32 +80,68 @@ export async function processSessionVideo(input: ProcessVideoInput): Promise<voi
       hasCaptions = true;
     }
 
-    // 5. Watch link + expiry.
-    const base = (
-      process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3001}`
-    ).replace(/\/$/, '');
-    const watchUrl = `${base}/watch/${input.sessionId}`;
-    const expiresAt = Date.now() + VIDEO_TTL_DAYS * 24 * 60 * 60 * 1000;
-
-    // 6. Record it on the session document.
-    await updateSessionVideo(input.sessionId, watchUrl, expiresAt, hasCaptions);
-
-    // 7. Email the founder the watch link.
-    if (input.founder) {
-      await sendFollowUpEmail({
-        founder: input.founder,
+    // 5. Deliver. Cloud mode uploads to GCS and emails signed links, falling
+    // back to the durable delivery queue on failure (keeping temp files so a
+    // retry can re-upload). Local mode keeps hosting under /videos + /watch.
+    if (isGcsEnabled()) {
+      const job: VideoDeliveryJob = {
+        kind: 'video',
         sessionId: input.sessionId,
+        conversationId: input.conversationId,
+        mp4Path,
+        vttPath: hasCaptions ? vttPath : null,
+        founder: input.founder,
         roast: input.roast,
-        recordingUrl: null,
-        recordingExpiresAt: expiresAt,
-        watchUrl,
-      });
-    }
+        offsetMs: input.offsetMs,
+      };
+      try {
+        await deliverVideo(job); // upload + signed links + Atlas keys + email
+        // Delivered: the objects live in GCS now, drop the local temp files.
+        await fs.unlink(mp4Path).catch(() => {});
+        if (hasCaptions) await fs.unlink(vttPath).catch(() => {});
+        console.log(
+          `[video] cloud-delivered ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'}, captions=${hasCaptions})`,
+        );
+      } catch (err) {
+        // Keep the temp mp4/vtt so the queued job can retry the upload, and do
+        // NOT markDelivered — the audio fallback can still cover this session.
+        console.error(
+          `[video] cloud delivery failed for ${input.sessionId}, queuing for retry:`,
+          err,
+        );
+        await enqueueDelivery(job);
+      }
+    } else {
+      // Local mode (unchanged): host under /videos, email a /watch link.
+      const base = (
+        process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3001}`
+      ).replace(/\/$/, '');
+      const watchUrl = `${base}/watch/${input.sessionId}`;
+      const expiresAt = Date.now() + VIDEO_TTL_DAYS * 24 * 60 * 60 * 1000;
 
-    console.log(
-      `[video] ready for ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'}, captions=${hasCaptions}) -> ${watchUrl}`,
-    );
+      // Record it on the session document.
+      await updateSessionVideo(input.sessionId, watchUrl, expiresAt, hasCaptions);
+
+      // Email the founder the watch link.
+      if (input.founder) {
+        await sendFollowUpEmail({
+          founder: input.founder,
+          sessionId: input.sessionId,
+          roast: input.roast,
+          recordingUrl: null,
+          recordingExpiresAt: expiresAt,
+          watchUrl,
+        });
+      }
+
+      markDelivered(input.sessionId);
+      console.log(
+        `[video] ready for ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'}, captions=${hasCaptions}) -> ${watchUrl}`,
+      );
+    }
   } catch (err) {
+    // Failed before producing a deliverable: log and leave the session
+    // unmarked so the audio fallback (if armed) can still reach the founder.
     console.error(`[video] processing failed for ${input.sessionId}:`, err);
   } finally {
     await fs.unlink(input.sourceFile).catch(() => {});

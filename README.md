@@ -130,6 +130,30 @@ deliverable); the transcript/audio are still saved to the session doc.
   upload — no changes to the transcode/caption/host/email tail.
 - Recordings/videos are booth-grade local hosting; swap for S3/GCS in production.
 
+## Cloud delivery (production — env-gated)
+
+The booth runs locally; the deliverable can go to the cloud. With `GCS_BUCKET`
+set, the finished MP4 + captions + a self-contained player page are uploaded to
+Google Cloud Storage and the founder is emailed **7-day V4 signed links** (Watch
++ Download). With `GCS_BUCKET` unset, everything stays local (`/videos` + `/watch`)
+exactly as above — the cloud path is fully off by default.
+
+- **Storage** (`server/storage.ts`): `GCS_BUCKET`, `GOOGLE_APPLICATION_CREDENTIALS`
+  (service-account JSON). Uses V4 signed URLs (7-day max), with a
+  `response-content-disposition` variant for the Download link.
+- **Email** (`server/email.ts`): `EMAIL_TRANSPORT=smtp` sends via nodemailer
+  (`SMTP_HOST/PORT/SECURE/USER/PASS`, `EMAIL_FROM`, `EMAIL_REPLY_TO`); default
+  `preview` writes `.eml` to `./outbox`.
+- **Video-failure fallback**: the audio recording is armed as a fallback
+  (`server/delivery.ts`) and only emailed if the video didn't deliver within
+  `DELIVERY_FALLBACK_MS` (6 min) — so a founder always gets *something*.
+- **Resilience**: GCS uploads + email use `withRetry` (backoff), and jobs that
+  exhaust retries persist to `./.delivery-queue` and are retried on an interval /
+  at boot (`server/deliveryQueue.ts`). Local temp files are kept until a queued
+  video job succeeds.
+- **Deletion** (`server/deletion.ts`): removes the GCS objects by stored key when
+  cloud storage is on.
+
 ## Where to change things
 
 - Questions, categories, banned words, timings: `shared/constants.ts`

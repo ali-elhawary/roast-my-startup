@@ -6,6 +6,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { sessionsCollection } from './db';
 import { RECORDINGS_DIR } from './recordings';
+import { isGcsEnabled, deleteObject } from './storage';
 
 const API = 'https://api.elevenlabs.io/v1/convai';
 
@@ -16,6 +17,7 @@ export type DeleteSummary = {
   sessionsDeleted: number;
   recordingsDeleted: number;
   conversationsDeleted: number;
+  objectsDeleted: number; // GCS objects removed (cloud mode)
   errors: string[];
 };
 
@@ -25,6 +27,7 @@ export async function deleteSessions(query: DeleteQuery): Promise<DeleteSummary>
     sessionsDeleted: 0,
     recordingsDeleted: 0,
     conversationsDeleted: 0,
+    objectsDeleted: 0,
     errors: [],
   };
 
@@ -47,11 +50,36 @@ export async function deleteSessions(query: DeleteQuery): Promise<DeleteSummary>
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
+  const gcs = isGcsEnabled();
+
   for (const doc of docs) {
     const conversationId = (doc.conversation_id as string | null) ?? null;
+
+    // Cloud objects (GCS): remove the stored video/vtt/player + audio objects
+    // recorded on the session doc. Keys are stored (not signed URLs), so they
+    // survive link expiry.
+    if (gcs) {
+      const video = (doc.video ?? {}) as Record<string, unknown>;
+      const recording = (doc.recording ?? {}) as Record<string, unknown>;
+      const keys = [
+        video.video_key,
+        video.vtt_key,
+        video.player_key,
+        recording.key,
+      ].filter((k): k is string => typeof k === 'string' && k.length > 0);
+      for (const key of keys) {
+        try {
+          await deleteObject(key);
+          summary.objectsDeleted += 1;
+        } catch (err) {
+          summary.errors.push(`GCS delete ${key}: ${String(err)}`);
+        }
+      }
+    }
+
     if (!conversationId) continue;
 
-    // Local recording file
+    // Local recording file (local mode)
     const file = path.join(RECORDINGS_DIR, `${conversationId}.mp3`);
     try {
       await fs.unlink(file);

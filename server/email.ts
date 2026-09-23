@@ -1,10 +1,12 @@
-// Follow-up email. Preview transport for now: it composes the real subject and
-// body and writes a .eml file to ./outbox (and logs a line) so we can see
-// exactly what would be sent. Swap `deliver` for SMTP / Resend / SendGrid later
-// without touching the composition.
+// Follow-up email. Composition is transport-agnostic: composeEmail builds the
+// real subject + body, and deliver() routes it based on EMAIL_TRANSPORT.
+//   - "preview" (default): writes a .eml file to ./outbox (and logs a line) so
+//     we can see exactly what would be sent — unchanged local behavior.
+//   - "smtp": sends for real via nodemailer using the SMTP_* settings.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import nodemailer, { type Transporter } from 'nodemailer';
 import type { Founder, Roast } from '../shared/types';
 
 const OUTBOX_DIR = path.resolve(process.cwd(), 'outbox');
@@ -17,6 +19,7 @@ export type FollowUpEmailInput = {
   recordingUrl: string | null;
   recordingExpiresAt: number | null;
   watchUrl?: string | null; // video watch page (takes precedence over audio link)
+  downloadUrl?: string | null; // direct video download (shown alongside watch)
 };
 
 export async function sendFollowUpEmail(input: FollowUpEmailInput): Promise<void> {
@@ -45,10 +48,17 @@ function composeEmail(input: FollowUpEmailInput): {
     'MongoDB for Startups gives eligible startups free Atlas credits, technical ' +
     'guidance, and co-marketing. Details: [TODO: real link].';
 
+  const expiryNote = expiry ? `\n(This link expires ${expiry}.)` : '';
   const recordingLine = input.watchUrl
-    ? `Watch your roast here: ${input.watchUrl}${expiry ? `\n(This link expires ${expiry}.)` : ''}`
+    ? [
+        `Watch your roast here: ${input.watchUrl}`,
+        input.downloadUrl ? `Download the video: ${input.downloadUrl}` : null,
+        expiry ? `(These links expire ${expiry}.)` : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
     : input.recordingUrl
-      ? `Listen back here: ${input.recordingUrl}${expiry ? `\n(This link expires ${expiry}.)` : ''}`
+      ? `Listen back here: ${input.recordingUrl}${expiryNote}`
       : 'Your recording is still processing; we\u2019ll follow up with the link shortly.';
 
   const roastBlock = roastText
@@ -69,17 +79,19 @@ function composeEmail(input: FollowUpEmailInput): {
     '\u2014 The Roast My Startup booth',
   ].join('\n');
 
+  const linksHtml = input.watchUrl
+    ? `<a href="${input.watchUrl}">Watch your roast</a>` +
+      (input.downloadUrl ? ` &middot; <a href="${input.downloadUrl}">Download the video</a>` : '') +
+      (expiry ? ` &middot; expires ${escapeHtml(expiry)}` : '')
+    : input.recordingUrl
+      ? `<a href="${input.recordingUrl}">Listen back to your recording</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
+      : 'Your recording is still processing; we\u2019ll follow up with the link shortly.';
+
   const html = `<div style="font-family:system-ui,Segoe UI,sans-serif;max-width:560px">
   <p>Hi ${escapeHtml(firstName)},</p>
   <p>Thanks for getting roasted at the booth.</p>
   ${roastText ? `<blockquote style="border-left:3px solid #39FF6A;margin:0;padding:8px 16px;color:#111">${escapeHtml(roastText)}</blockquote>` : ''}
-  <p>${
-    input.watchUrl
-      ? `<a href="${input.watchUrl}">Watch your roast</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
-      : input.recordingUrl
-        ? `<a href="${input.recordingUrl}">Listen back to your recording</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
-        : 'Your recording is still processing; we\u2019ll follow up with the link shortly.'
-  }</p>
+  <p>${linksHtml}</p>
   <hr/>
   <p style="color:#555">${escapeHtml(startupsBlurb)}</p>
   <p>&mdash; The Roast My Startup booth</p>
@@ -88,8 +100,42 @@ function composeEmail(input: FollowUpEmailInput): {
   return { subject, text, html };
 }
 
+let transporter: Transporter | null = null;
+
+// Build (once) the nodemailer SMTP transport from env.
+function smtpTransport(): Transporter {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+  return transporter;
+}
+
 async function deliver(to: string, subject: string, text: string, html: string) {
-  // Preview transport. Replace the body of this function with a real provider.
+  const transport = (process.env.EMAIL_TRANSPORT || 'preview').toLowerCase();
+
+  if (transport === 'smtp') {
+    // Real send. Throws on failure so the caller can retry / queue.
+    await smtpTransport().sendMail({
+      from: FROM,
+      replyTo: process.env.EMAIL_REPLY_TO || undefined,
+      to,
+      subject,
+      text,
+      html,
+    });
+    console.log(`[email] smtp -> ${to} | ${subject}`);
+    return;
+  }
+
+  // Preview transport (default). Writes a .eml to ./outbox — unchanged behavior.
   console.log(`[email] preview -> ${to} | ${subject}`);
   await fs.mkdir(OUTBOX_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');

@@ -11,6 +11,7 @@ import { aggregateTodayStats, connectDb, ensureIndexes, isAtlasEnabled } from '.
 import { RECORDINGS_DIR } from './recordings';
 import { VIDEOS_DIR } from './video';
 import { flushQueue, startQueueFlusher } from './writeQueue';
+import { flushDeliveryQueue, startDeliveryFlusher } from './deliveryQueue';
 import agentRouter from './routes/agent';
 import adminRouter from './routes/admin';
 import videoRouter from './routes/video';
@@ -100,4 +101,10 @@ server.listen(PORT, async () => {
     await flushQueue();
     startQueueFlusher();
   }
+
+  // Retry any cloud deliveries (video/audio upload + email) that failed on a
+  // previous run, then keep retrying on an interval. Safe no-op when the
+  // delivery queue is empty (i.e. GCS/SMTP not configured).
+  await flushDeliveryQueue();
+  startDeliveryFlusher();
 });

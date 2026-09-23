@@ -21,9 +21,19 @@ export async function saveRecording(
   const filePath = path.join(RECORDINGS_DIR, fileName);
   await fs.writeFile(filePath, buffer);
 
+  const { url, expiresAt } = recordingPublicUrl(conversationId);
+  return { url, expiresAt, filePath };
+}
+
+// Build the local (LAN) URL + expiry for a saved recording without touching
+// disk. Used by the delivery fallback to (re)build the audio link at send time.
+export function recordingPublicUrl(conversationId: string): {
+  url: string;
+  expiresAt: number;
+} {
   const base =
     process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
-  const url = `${base.replace(/\/$/, '')}/recordings/${fileName}`;
+  const url = `${base.replace(/\/$/, '')}/recordings/${conversationId}.mp3`;
   const expiresAt = Date.now() + RECORDING_TTL_DAYS * 24 * 60 * 60 * 1000;
-  return { url, expiresAt, filePath };
+  return { url, expiresAt };
 }

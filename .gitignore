@@ -8,3 +8,4 @@ recordings
 outbox
 videos
 .write-queue
+.delivery-queue
