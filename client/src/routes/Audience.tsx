@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '@/lib/ws';
-import { useNow } from '@/lib/useNow';
 import { Brand } from '@/lib/Brand';
-import { computeRevealSchedule, splitSentences } from '@/lib/reveal';
+import { splitSentences } from '@/lib/reveal';
 import { QUESTIONS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
 
@@ -18,13 +17,9 @@ export default function Audience() {
     case 'q1':
     case 'q2':
     case 'q3':
-      content = <Questions state={state} />;
-      break;
     case 'generating':
-      content = <Generating />;
-      break;
     case 'roasting':
-      content = <Roasting state={state} />;
+      content = <ConversationView state={state} />;
       break;
     case 'complete':
       content = <RoastCard state={state} />;
@@ -34,11 +29,107 @@ export default function Audience() {
       content = <Attract />;
   }
 
+  // Brand background image + dark scrim behind every audience state.
   return (
-    <>
-      {content}
-      <NextUp state={state} />
-    </>
+    <div className="relative h-full overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 bg-ink-900 bg-cover bg-center"
+        style={{ backgroundImage: 'url(/audience-bg.png)' }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-900/75 via-ink-900/55 to-ink-900/85" />
+      <div className="relative h-full">
+        {content}
+        <NextUp state={state} />
+      </div>
+    </div>
+  );
+}
+
+// Live turn-by-turn transcript with the current question, shown through the whole
+// conversation (q1..q3, generating, roasting). The roast itself arrives as the
+// roaster's turns in the feed, so it reads live instead of a separate reveal.
+function ConversationView({ state }: { state: SessionState }) {
+  const activeIndex =
+    state.phase === 'q1' ? 0 : state.phase === 'q2' ? 1 : state.phase === 'q3' ? 2 : -1;
+  const currentQuestion = activeIndex >= 0 ? QUESTIONS[activeIndex as 0 | 1 | 2] : null;
+  const recent = state.transcript.slice(-4);
+  const firstName = state.founder?.name.trim().split(/\s+/)[0];
+
+  return (
+    <div className="flex h-full flex-col px-16 py-12">
+      <Brand className="text-xl" />
+
+      <div className="mt-8 min-h-[5rem]">
+        {currentQuestion ? (
+          <div className="flex items-center gap-5">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-3xl font-bold text-ink-900">
+              {activeIndex + 1}
+            </span>
+            <h1 className="text-6xl font-black leading-none tracking-tight text-ink-100">
+              {currentQuestion}
+            </h1>
+          </div>
+        ) : state.phase === 'generating' ? (
+          <div className="inline-flex items-center gap-4 rounded-full bg-ink-800/80 px-7 py-3 text-3xl font-bold text-accent">
+            Cooking up the roast
+            <Dots />
+          </div>
+        ) : state.phase === 'roasting' ? (
+          <div className="text-4xl font-black uppercase tracking-[0.2em] text-accent">The Roast</div>
+        ) : (
+          <h1 className="text-5xl font-black tracking-tight text-ink-100">
+            You&rsquo;re up{firstName ? `, ${firstName}` : ''}.
+          </h1>
+        )}
+      </div>
+
+      {/* Live feed: last few turns, newest largest, older dimmed. */}
+      <div className="mt-10 flex flex-1 flex-col justify-end gap-7 overflow-hidden">
+        {recent.length === 0 ? (
+          <p className="text-3xl text-ink-400">Listening&hellip;</p>
+        ) : (
+          recent.map((t, idx) => {
+            const isNewest = idx === recent.length - 1;
+            const isFounder = t.role === 'user';
+            return (
+              <div
+                key={`${t.at}-${idx}`}
+                className={isNewest ? 'opacity-100' : 'opacity-40'}
+              >
+                <div
+                  className={`mb-1 text-xl font-bold uppercase tracking-[0.15em] ${
+                    isFounder ? 'text-ink-400' : 'text-accent'
+                  }`}
+                >
+                  {isFounder ? 'Founder' : 'Roaster'}
+                </div>
+                <p
+                  className={`${
+                    isNewest ? 'text-5xl text-ink-100' : 'text-3xl text-ink-300'
+                  } font-normal leading-tight tracking-tight`}
+                >
+                  {t.text}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Dots() {
+  return (
+    <span className="inline-flex gap-1.5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-3 w-3 rounded-full bg-accent"
+          style={{ animation: 'dotBlink 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s` }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -104,104 +195,6 @@ function Attract() {
   );
 }
 
-function Questions({ state }: { state: SessionState }) {
-  const activeIndex =
-    state.phase === 'q1' ? 0 : state.phase === 'q2' ? 1 : state.phase === 'q3' ? 2 : -1;
-  const answers = [state.answers.building, state.answers.audience, state.answers.differentiation];
-
-  return (
-    <div className="flex h-full flex-col justify-center px-16">
-      <Brand className="mb-12 text-xl" />
-      <ul className="space-y-8">
-        {QUESTIONS.map((q, idx) => {
-          const done = activeIndex === -1 ? false : idx < activeIndex;
-          const active = idx === activeIndex;
-          const answer = answers[idx]?.slice(0, 60);
-          return (
-            <li key={q} className="flex items-start gap-6">
-              <span
-                className={`mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl font-bold ${
-                  active
-                    ? 'bg-accent text-ink-900'
-                    : done
-                      ? 'bg-accent/20 text-accent'
-                      : 'bg-ink-700 text-ink-400'
-                }`}
-              >
-                {idx + 1}
-              </span>
-              <div>
-                <div
-                  className={`text-5xl font-extrabold tracking-tight ${
-                    active ? 'text-ink-100' : done ? 'text-ink-200' : 'text-ink-400'
-                  }`}
-                >
-                  {q}
-                </div>
-                {done && answer && (
-                  <div className="mt-2 text-2xl text-accent/80">
-                    &ldquo;{answer}
-                    {answers[idx].length > 60 ? '\u2026' : ''}&rdquo;
-                  </div>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function Generating() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-16">
-      <div className="text-6xl font-black tracking-tight text-ink-100">
-        Cooking up your roast
-      </div>
-      <div className="relative mt-12 h-3 w-96 overflow-hidden rounded-full bg-ink-700">
-        <div
-          className="absolute inset-y-0 left-0 w-1/4 rounded-full bg-accent"
-          style={{ animation: 'thinkingSweep 1.4s ease-in-out infinite' }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Roasting({ state }: { state: SessionState }) {
-  const text = state.roast?.text ?? '';
-  const schedule = useMemo(() => computeRevealSchedule(text), [text]);
-  const now = useNow(100);
-  const elapsed = state.phaseStartedAt ? now - state.phaseStartedAt : 0;
-
-  const revealedCount = Math.max(1, schedule.filter((s) => elapsed >= s.startMs).length);
-  const visible = schedule.slice(0, revealedCount);
-
-  return (
-    <div className="flex h-full flex-col justify-center px-16 py-14">
-      <Brand className="mb-10 text-xl" />
-      <div className="space-y-4">
-        {visible.map((seg, idx) => {
-          const isCurrent = idx === visible.length - 1;
-          return (
-            <p
-              key={idx}
-              className={
-                isCurrent
-                  ? 'text-6xl font-black leading-tight tracking-tight text-ink-100'
-                  : 'text-4xl font-semibold leading-snug text-ink-400'
-              }
-            >
-              {seg.text}
-            </p>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function RoastCard({ state }: { state: SessionState }) {
   const sentences = splitSentences(state.roast?.text ?? '');
   const punchline = sentences.length
@@ -212,7 +205,7 @@ function RoastCard({ state }: { state: SessionState }) {
     <div className="flex h-full flex-col justify-between px-16 py-14">
       <Brand className="text-2xl" />
       <div className="flex flex-1 items-center">
-        <blockquote className="max-w-6xl text-7xl font-black leading-[1.05] tracking-tight text-balance">
+        <blockquote className="max-w-6xl font-serif text-7xl leading-[1.08] tracking-tight text-balance">
           <span className="text-accent">&ldquo;</span>
           {punchline}
           <span className="text-accent">&rdquo;</span>

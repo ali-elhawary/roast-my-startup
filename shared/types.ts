@@ -34,6 +34,14 @@ export type Roast = {
   source: RoastSource;
 };
 
+// One finalized turn of the live conversation, relayed from /station's agent
+// (ElevenLabs onMessage) so /audience can show a turn-by-turn transcript.
+export type TranscriptEntry = {
+  role: 'user' | 'agent'; // 'user' = founder, 'agent' = roaster
+  text: string;
+  at: number; // client clock; display order only
+};
+
 export type SessionState = {
   phase: Phase;
   sessionId: string | null;
@@ -48,6 +56,9 @@ export type SessionState = {
     differentiation: string;
   };
   roast: Roast | null;
+  // Live, turn-by-turn transcript of the current session (founder + roaster),
+  // in speaking order. Reset when a new session begins.
+  transcript: TranscriptEntry[];
   phaseStartedAt: number | null;
   error: string | null;
   // Increments on every `skip` (operator or question-timeout). /station watches
@@ -74,6 +85,7 @@ export type Command =
   | { type: 'start' }
   | { type: 'conversationStarted'; conversationId: string }
   | { type: 'answer'; index: 1 | 2 | 3; text: string }
+  | { type: 'transcriptTurn'; role: 'user' | 'agent'; text: string } // live caption feed for /audience
   | { type: 'roast'; text: string; category: string; source: RoastSource }
   | { type: 'complete' }
   | { type: 'next' } // Done / Call next: end current, promote next in line

@@ -41,6 +41,7 @@ export function initialState(): SessionState {
     queue: [],
     answers: emptyAnswers(),
     roast: null,
+    transcript: [],
     phaseStartedAt: null,
     error: null,
     skipSignal: 0,
@@ -164,6 +165,25 @@ export function reduce(
         paused: false,
         skipSignal: state.skipSignal + 1,
       };
+    }
+
+    case 'transcriptTurn': {
+      // Live caption feed relayed from /station's agent. Display-only: it never
+      // changes phase. Ignore stray turns when no session is active.
+      if (state.phase === 'idle' || !state.sessionId) return state;
+      const text = command.text.trim();
+      if (!text) return state;
+      const entry = { role: command.role, text, at: now };
+      // Coalesce repeated same-role finals (SDK can re-emit a growing message)
+      // by replacing the last entry when it's the same speaker and a prefix.
+      const last = state.transcript[state.transcript.length - 1];
+      if (last && last.role === entry.role && text.startsWith(last.text)) {
+        return {
+          ...state,
+          transcript: [...state.transcript.slice(0, -1), entry],
+        };
+      }
+      return { ...state, transcript: [...state.transcript, entry] };
     }
 
     case 'roast': {

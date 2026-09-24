@@ -20,8 +20,12 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        // Söhne carries body + (via the 600-900 @font-face range) all bold/impact
+        // text as Söhne Condensed. Value Serif for editorial quotes; Söhne Mono
+        // for labels/metadata/operator.
+        sans: ['Sohne', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        serif: ['MongoDB Value Serif', 'Georgia', 'serif'],
+        mono: ['Sohne Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
     },
   },

@@ -50,6 +50,19 @@ export function BoothAgentProvider({
       onError={(error: unknown) =>
         sendCommand({ type: 'agentError', message: String(error) })
       }
+      onMessage={(payload: unknown) => {
+        // Each finalized conversation turn (founder or roaster). Relay it so
+        // /audience can render a live, turn-by-turn transcript.
+        const p = payload as {
+          message?: string;
+          role?: 'user' | 'agent';
+          source?: 'user' | 'ai';
+        };
+        const text = (p?.message ?? '').trim();
+        if (!text) return;
+        const role = p.role === 'agent' || p.source === 'ai' ? 'agent' : 'user';
+        sendCommand({ type: 'transcriptTurn', role, text });
+      }}
       onAudioAlignment={(alignment: unknown) => {
         // Character-level timing for agent speech. Shape is not documented in
         // detail — log it once on the first live run, then refine the

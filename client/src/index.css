@@ -1,4 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+/* MongoDB brand fonts, self-hosted from /public/fonts. Söhne is declared as one
+   family with two weight ranges: 400-500 uses Söhne Regular, and 600-900 uses
+   Söhne Condensed Bold. So every existing font-semibold/bold/extrabold/black
+   automatically renders as genuine Condensed Bold (no faux-bold), while normal
+   and font-medium text stays Söhne Regular — brand-wide with no per-element edits. */
+@font-face {
+  font-family: 'Sohne';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('/fonts/Sohne-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Sohne';
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: url('/fonts/SohneCondensed-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Sohne Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/SohneMono-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'MongoDB Value Serif';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/MongoDBValueSerif-Regular.otf') format('opentype');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
