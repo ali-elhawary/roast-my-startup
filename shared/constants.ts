@@ -40,11 +40,12 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   other: 'Other',
 };
 
-// Roast length bounds, in words. The persona targets ~90-120 words; the hard
-// cap is higher so a slightly long-winded (but fine) roast isn't rejected and
-// forced into a costly regenerate. A reject should be rare.
-export const ROAST_MIN_WORDS = 60;
-export const ROAST_MAX_WORDS = 160;
+// Roast length bounds, in words. The persona targets ~45-65 words (punchy, ~25-30s
+// spoken); the hard cap sits a bit above the prompt cap so a slightly long-winded
+// (but fine) roast isn't rejected and forced into a costly regenerate. A reject
+// should be rare.
+export const ROAST_MIN_WORDS = 30;
+export const ROAST_MAX_WORDS = 90;
 
 // Denylist enforced in code before any roast reaches the speaker. Keep this in
 // one place and mirror it in the agent system prompt.

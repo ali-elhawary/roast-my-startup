@@ -230,13 +230,17 @@ async function waitForConversation(conversationId: string): Promise<Conversation
 
 const MAX_WORDS_PER_CUE = 12; // ~12 words per caption
 const MIN_CUE_SEC = 0.8;
-const WPM = 150; // fallback pacing for the last turn (no next-turn boundary)
+const WPM = 150; // caption pacing: words/min used to size each turn's window
 
-// Turn the transcript into a WebVTT track. Each turn is split into short cues
-// spread across the turn's time window, so captions change every couple seconds
-// instead of dumping a whole paragraph on the frame. The LAST turn (the roast)
-// is bounded to the real audio end (callDurationSecs) so its captions track the
-// spoken pace instead of racing ahead on a word-count estimate.
+// Turn the transcript into a WebVTT track, with timing driven by word count and
+// non-overlap rather than the raw per-turn timestamps. ElevenLabs stamps the
+// closing line earlier than the long roast actually finishes speaking, and the
+// old code both bounded each turn by the NEXT turn's stamp AND stretched the LAST
+// turn to the audio end — so "thanks for stopping by" appeared way too early and
+// lingered while the roast cues raced ahead and died out. Now each turn gets a
+// window sized by its words at WPM, anchored no earlier than the previous turn's
+// end (a long roast pushes the closing line later), and clamped to the real audio
+// length. Turn order is the only thing we trust from the transcript.
 export function buildVtt(
   turns: TranscriptTurn[],
   offsetMs: number,
@@ -244,23 +248,23 @@ export function buildVtt(
 ): string {
   const offsetSec = offsetMs / 1000;
   const audioEnd = callDurationSecs != null ? callDurationSecs + offsetSec : null;
+  const secPerWord = 60 / WPM;
   const lines = ['WEBVTT', ''];
 
+  let prevEnd = 0;
   for (let i = 0; i < turns.length; i++) {
     const turn = turns[i];
     const words = turn.message.split(/\s+/).filter(Boolean);
     if (!words.length) continue;
 
-    const turnStart = Math.max(0, turn.timeInCallSecs + offsetSec);
-    const isLast = i + 1 >= turns.length;
-    const nextStart = !isLast ? turns[i + 1].timeInCallSecs + offsetSec : null;
-    // Last turn: end at the real audio end when known; otherwise estimate.
-    const estDur = Math.max(MIN_CUE_SEC, (words.length / WPM) * 60);
-    const turnEnd = !isLast
-      ? Math.max(turnStart + MIN_CUE_SEC, nextStart!)
-      : audioEnd != null
-        ? Math.max(turnStart + MIN_CUE_SEC, audioEnd)
-        : turnStart + estDur;
+    // Anchor to the reported start, but never before the previous turn ended, so
+    // a bad (too-early) stamp can't cram the prior turn or start this one early.
+    const turnStart = Math.max(turn.timeInCallSecs + offsetSec, prevEnd);
+    if (audioEnd != null && turnStart >= audioEnd) break; // no audio left to caption
+
+    // Size the window by how long the words take to speak, clamped to audio end.
+    let turnEnd = turnStart + Math.max(MIN_CUE_SEC, words.length * secPerWord);
+    if (audioEnd != null) turnEnd = Math.min(turnEnd, audioEnd);
     const duration = Math.max(MIN_CUE_SEC, turnEnd - turnStart);
 
     const chunks = chunkWords(words, MAX_WORDS_PER_CUE);
@@ -277,6 +281,7 @@ export function buildVtt(
       lines.push('');
       cursor = cueEnd;
     }
+    prevEnd = turnEnd;
   }
   return lines.join('\n');
 }
