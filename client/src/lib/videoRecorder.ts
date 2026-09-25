@@ -13,7 +13,7 @@ type UploadMeta = {
   sessionId: string;
   conversationId: string | null;
   conversationStartMs: number;
-  founder: { name: string; email: string; consentAt: number } | null;
+  founder: { name: string; email: string; company: string; consentAt: number } | null;
 };
 
 function pickMimeType(): string | '' {
@@ -140,6 +140,7 @@ export function useVideoRecorder() {
     if (meta.founder) {
       params.set('name', meta.founder.name);
       params.set('email', meta.founder.email);
+      params.set('company', meta.founder.company);
       params.set('consentAt', String(meta.founder.consentAt));
     }
 

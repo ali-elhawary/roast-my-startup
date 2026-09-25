@@ -27,74 +27,75 @@ export async function sendFollowUpEmail(input: FollowUpEmailInput): Promise<void
   await deliver(input.founder.email, subject, text, html);
 }
 
+// MongoDB for Startups CTA targets (from the event team).
+const APPLY_URL =
+  'https://www.mongodb.com/lp/solutions/startups/partners?utm_campaign=startups-partners&utm_source=localNYC9.30&utm_medium=event';
+const ELIGIBILITY_URL = 'https://www.mongodb.com/solutions/startups';
+
 function composeEmail(input: FollowUpEmailInput): {
   subject: string;
   text: string;
   html: string;
 } {
   const firstName = input.founder.name.trim().split(/\s+/)[0] || 'there';
-  const roastText = input.roast?.text?.trim();
   const expiry = input.recordingExpiresAt
     ? new Date(input.recordingExpiresAt).toLocaleDateString()
     : null;
 
-  const subject = input.watchUrl
-    ? 'Your Roast My Startup video'
-    : 'Your Roast My Startup recording';
+  const subject = '.local NYC: Your Roast My Startup recording is here \u{1F525}';
 
-  // TODO: replace with the real MongoDB for Startups program copy (MongoDB owns
-  // this content).
-  const startupsBlurb =
-    'MongoDB for Startups gives eligible startups free Atlas credits, technical ' +
-    'guidance, and co-marketing. Details: [TODO: real link].';
-
-  const expiryNote = expiry ? `\n(This link expires ${expiry}.)` : '';
-  const recordingLine = input.watchUrl
+  // Recording link block: the video deliverable gives Watch + Download; the rare
+  // audio-only fallback gives a single recording link.
+  const linksText = input.watchUrl
     ? [
-        `Watch your roast here: ${input.watchUrl}`,
+        `Watch your roast: ${input.watchUrl}`,
         input.downloadUrl ? `Download the video: ${input.downloadUrl}` : null,
         expiry ? `(These links expire ${expiry}.)` : null,
       ]
         .filter(Boolean)
         .join('\n')
     : input.recordingUrl
-      ? `Listen back here: ${input.recordingUrl}${expiryNote}`
+      ? `Here\u2019s your recording: ${input.recordingUrl}${expiry ? `\n(This link expires ${expiry}.)` : ''}`
       : 'Your recording is still processing; we\u2019ll follow up with the link shortly.';
-
-  const roastBlock = roastText
-    ? `Here\u2019s the roast, in case you want it in writing:\n\n"${roastText}"`
-    : 'Thanks for stepping into the hot seat.';
 
   const text = [
     `Hi ${firstName},`,
     '',
-    'Thanks for getting roasted at the booth.',
+    'Thank you for stopping by Roast My Startup, powered by MongoDB x Google Cloud x ElevenLabs! We hope your roast wasn\u2019t too spicy \u{1F609}',
     '',
-    roastBlock,
+    linksText,
     '',
-    recordingLine,
+    'Feel free to share it on social media - just make sure to tag @MongoDB and use #MongoDBlocal',
     '',
-    startupsBlurb,
+    'Since you\u2019re bold enough to survive a live roast, you might be a great fit for the MongoDB for Startups program. Qualified founders can get up to $15,000 in Atlas credits*, technical guidance, and go-to-market support to help you build and scale.',
     '',
-    '\u2014 The Roast My Startup booth',
+    `Apply for up to $15k in credits \u2192 ${APPLY_URL}`,
+    '',
+    'Happy building,',
+    'The MongoDB for Startups Team',
+    '',
+    `*MongoDB for Startups credits are subject to program eligibility criteria. Check your eligibility here: ${ELIGIBILITY_URL}`,
   ].join('\n');
 
   const linksHtml = input.watchUrl
     ? `<a href="${input.watchUrl}">Watch your roast</a>` +
       (input.downloadUrl ? ` &middot; <a href="${input.downloadUrl}">Download the video</a>` : '') +
-      (expiry ? ` &middot; expires ${escapeHtml(expiry)}` : '')
+      (expiry
+        ? `<br/><span style="color:#555;font-size:13px">These links expire ${escapeHtml(expiry)}.</span>`
+        : '')
     : input.recordingUrl
-      ? `<a href="${input.recordingUrl}">Listen back to your recording</a>${expiry ? ` &middot; expires ${escapeHtml(expiry)}` : ''}`
+      ? `<a href="${input.recordingUrl}">Here\u2019s your recording</a>${expiry ? `<br/><span style="color:#555;font-size:13px">This link expires ${escapeHtml(expiry)}.</span>` : ''}`
       : 'Your recording is still processing; we\u2019ll follow up with the link shortly.';
 
-  const html = `<div style="font-family:system-ui,Segoe UI,sans-serif;max-width:560px">
+  const html = `<div style="font-family:system-ui,Segoe UI,sans-serif;max-width:560px;line-height:1.5;color:#001E2B">
   <p>Hi ${escapeHtml(firstName)},</p>
-  <p>Thanks for getting roasted at the booth.</p>
-  ${roastText ? `<blockquote style="border-left:3px solid #39FF6A;margin:0;padding:8px 16px;color:#111">${escapeHtml(roastText)}</blockquote>` : ''}
+  <p>Thank you for stopping by Roast My Startup, powered by MongoDB &times; Google Cloud &times; ElevenLabs! We hope your roast wasn\u2019t too spicy \u{1F609}</p>
   <p>${linksHtml}</p>
-  <hr/>
-  <p style="color:#555">${escapeHtml(startupsBlurb)}</p>
-  <p>&mdash; The Roast My Startup booth</p>
+  <p>Feel free to share it on social media &mdash; just make sure to tag <strong>@MongoDB</strong> and use <strong>#MongoDBlocal</strong>.</p>
+  <p>Since you\u2019re bold enough to survive a live roast, you might be a great fit for the MongoDB for Startups program. Qualified founders can get up to <strong>$15,000 in Atlas credits*</strong>, technical guidance, and go-to-market support to help you build and scale.</p>
+  <p><a href="${APPLY_URL}" style="display:inline-block;background:#00ED64;color:#001E2B;font-weight:bold;text-decoration:none;padding:12px 22px;border-radius:8px">Apply for up to $15k in credits &rarr;</a></p>
+  <p>Happy building,<br/>The MongoDB for Startups Team</p>
+  <p style="color:#555;font-size:12px">*MongoDB for Startups credits are subject to program eligibility criteria. <a href="${ELIGIBILITY_URL}">Check your eligibility here</a>.</p>
 </div>`;
 
   return { subject, text, html };

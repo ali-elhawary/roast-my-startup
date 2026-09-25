@@ -47,7 +47,13 @@ export function runFakeSession(
   const say = (role: 'user' | 'agent', text: string) =>
     dispatch({ type: 'transcriptTurn', role, text });
 
-  at(0, { type: 'signin', name: FAKE_FOUNDER.name, email: FAKE_FOUNDER.email, source: 'fake' });
+  at(0, {
+    type: 'signin',
+    name: FAKE_FOUNDER.name,
+    email: FAKE_FOUNDER.email,
+    company: FAKE_FOUNDER.company,
+    source: 'fake',
+  });
   at(2_000, { type: 'start' });
   at(2_200, { type: 'conversationStarted', conversationId: `fake_${Date.now()}` });
 

@@ -21,6 +21,7 @@ export type Founder = {
   id: string;
   name: string;
   email: string;
+  company: string; // startup name from sign-in
   consentAt: number;
 };
 
@@ -81,7 +82,7 @@ export type SessionState = {
 // ElevenLabs agent's client tools and the booth screens; in the dev flow the
 // server-side fake session dispatches the same messages. Handled identically.
 export type Command =
-  | { type: 'signin'; name: string; email: string; source?: SessionSource }
+  | { type: 'signin'; name: string; email: string; company: string; source?: SessionSource }
   | { type: 'start' }
   | { type: 'conversationStarted'; conversationId: string }
   | { type: 'answer'; index: 1 | 2 | 3; text: string }

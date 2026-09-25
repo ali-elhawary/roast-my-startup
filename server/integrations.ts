@@ -36,6 +36,7 @@ function toSessionDocument(s: SessionState) {
     participant: s.founder && {
       name: s.founder.name,
       email: s.founder.email,
+      company: s.founder.company,
       consent_accepted_at: new Date(s.founder.consentAt),
     },
     answers: s.answers,

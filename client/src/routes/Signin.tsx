@@ -38,28 +38,34 @@ function LinePanel({ state }: { state: SessionState | null }) {
   );
 }
 
-// Placeholder T&C body — replace with the real MongoDB-approved copy.
-const TERMS_LOREM =
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. This session is recorded. ' +
-  'The recording will be emailed to you and MongoDB may follow up about the Startups ' +
-  'program. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ' +
-  'ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea ' +
-  'commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse.';
+// Consent statement shown above the agree checkbox (event-approved copy).
+const CONSENT_STATEMENT =
+  'This session will be recorded (video and audio). The recording will be emailed ' +
+  'to you after your session. By participating, you agree that MongoDB may contact ' +
+  'you using the information provided about the MongoDB for Startups program and you ' +
+  'consent to providing your contact information to third-party event sponsors.';
 
 export default function Signin() {
   const { state, connected, sendCommand } = useSession();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [company, setCompany] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const busy = !!state && state.phase !== 'idle';
-  const canSubmit = name.trim() !== '' && email.trim() !== '' && agreed;
+  const canSubmit =
+    name.trim() !== '' && email.trim() !== '' && company.trim() !== '' && agreed;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    sendCommand({ type: 'signin', name: name.trim(), email: email.trim() });
+    sendCommand({
+      type: 'signin',
+      name: name.trim(),
+      email: email.trim(),
+      company: company.trim(),
+    });
     setSubmitted(true);
   }
 
@@ -85,6 +91,7 @@ export default function Signin() {
             setSubmitted(false);
             setName('');
             setEmail('');
+            setCompany('');
             setAgreed(false);
           }}
         >
@@ -131,9 +138,19 @@ export default function Signin() {
             autoComplete="off"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-ink-200">Startup Name</label>
+          <input
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            className="w-full rounded-lg border border-ink-600 bg-ink-800 px-4 py-3 text-lg outline-none focus:border-accent"
+            placeholder="Analytical Engine Co."
+            autoComplete="off"
+          />
+        </div>
 
-        <div className="max-h-32 overflow-y-auto rounded-lg border border-ink-600 bg-ink-800/60 p-3 text-sm text-ink-200">
-          {TERMS_LOREM}
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-ink-600 bg-ink-800/60 p-3 text-sm text-ink-200">
+          {CONSENT_STATEMENT}
         </div>
 
         <label className="flex items-start gap-3 text-base">
@@ -144,7 +161,8 @@ export default function Signin() {
             className="mt-1 h-5 w-5 accent-[#39FF6A]"
           />
           <span className="text-ink-100">
-            I agree to the terms and consent to being recorded and contacted.
+            I agree to the above and consent to being recorded, contacted, and providing
+            my information to third-party event sponsors.
           </span>
         </label>
 

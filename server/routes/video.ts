@@ -27,6 +27,7 @@ router.post(
           id: strOrNull(req.query.founderId) ?? 'upload',
           name: strOrNull(req.query.name) ?? '',
           email: String(req.query.email),
+          company: strOrNull(req.query.company) ?? '',
           consentAt: Number(req.query.consentAt ?? Date.now()) || Date.now(),
         }
       : null;

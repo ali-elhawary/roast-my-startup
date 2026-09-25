@@ -5,6 +5,7 @@
 export const FAKE_FOUNDER = {
   name: 'Dev Founder',
   email: 'founder@example.com',
+  company: 'Acme Robotics',
 };
 
 export const FAKE_ANSWERS = {

@@ -356,6 +356,17 @@ function QuestionView({ state }: { state: SessionState }) {
   const elapsed = state.phaseStartedAt ? now - state.phaseStartedAt : 0;
   const pct = Math.min(100, (elapsed / QUESTION_TIMEOUT_MS) * 100);
 
+  // The founder's answer so far, so they can see their words and not lose their
+  // thread. Scoped to THIS question via phaseStartedAt (same server clock as the
+  // transcript entries), so a previous answer never lingers.
+  const answerSoFar = state.transcript
+    .filter(
+      (t) => t.role === 'user' && state.phaseStartedAt != null && t.at >= state.phaseStartedAt,
+    )
+    .map((t) => t.text)
+    .join(' ')
+    .trim();
+
   return (
     <div className="flex h-full flex-col justify-center px-10">
       <div className="text-2xl font-semibold text-accent">
@@ -364,7 +375,16 @@ function QuestionView({ state }: { state: SessionState }) {
       <div className="mt-6 text-7xl font-black leading-tight tracking-tight text-balance">
         {QUESTIONS[idx]}
       </div>
-      <div className="mt-12 h-2 w-full overflow-hidden rounded-full bg-ink-700">
+
+      <div className="mt-8 min-h-[6rem]">
+        {answerSoFar ? (
+          <p className="text-3xl leading-snug text-ink-100">{answerSoFar}</p>
+        ) : (
+          <p className="text-2xl text-ink-400">Listening&hellip; take your time.</p>
+        )}
+      </div>
+
+      <div className="mt-10 h-2 w-full overflow-hidden rounded-full bg-ink-700">
         <div
           className="h-full rounded-full bg-accent transition-[width] duration-100 ease-linear"
           style={{ width: `${pct}%` }}

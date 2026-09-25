@@ -71,7 +71,13 @@ function beginSession(prev: SessionState, entry: QueuedFounder, now: number): Se
     phase: 'ready',
     sessionId: makeId(),
     sessionSource: entry.source,
-    founder: { id: entry.id, name: entry.name, email: entry.email, consentAt: entry.consentAt },
+    founder: {
+      id: entry.id,
+      name: entry.name,
+      email: entry.email,
+      company: entry.company,
+      consentAt: entry.consentAt,
+    },
     phaseStartedAt: now,
   };
 }
@@ -120,6 +126,7 @@ export function reduce(
         id: makeFounderId(),
         name: command.name,
         email: command.email,
+        company: command.company,
         consentAt: now,
         source: command.source ?? 'live',
       };
@@ -250,6 +257,7 @@ export function reduce(
         id: f.id,
         name: f.name,
         email: f.email,
+        company: f.company,
         consentAt: f.consentAt,
         source: state.sessionSource ?? 'live',
       };
