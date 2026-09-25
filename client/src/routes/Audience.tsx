@@ -34,7 +34,7 @@ export default function Audience() {
     <div className="relative h-full overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0 bg-ink-900 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/audience-bg.png)' }}
+        style={{ backgroundImage: 'url(/audience-bg.png)', transform: 'scale(1.08)' }}
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-900/75 via-ink-900/55 to-ink-900/85" />
       <div className="relative h-full">
@@ -57,27 +57,27 @@ function ConversationView({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col px-16 py-12">
-      <Brand className="text-xl" />
+      <Brand className="text-4xl" />
 
-      <div className="mt-8 min-h-[5rem]">
+      <div className="mt-8 min-h-[6rem]">
         {currentQuestion ? (
-          <div className="flex items-center gap-5">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-3xl font-bold text-ink-900">
+          <div className="flex items-center gap-6">
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-accent text-4xl font-bold text-ink-900">
               {activeIndex + 1}
             </span>
-            <h1 className="text-6xl font-black leading-none tracking-tight text-ink-100">
+            <h1 className="text-7xl font-black leading-none tracking-tight text-ink-100">
               {currentQuestion}
             </h1>
           </div>
         ) : state.phase === 'generating' ? (
-          <div className="inline-flex items-center gap-4 rounded-full bg-ink-800/80 px-7 py-3 text-3xl font-bold text-accent">
+          <div className="inline-flex items-center gap-4 rounded-full bg-ink-800/80 px-8 py-4 text-4xl font-bold text-accent">
             Cooking up the roast
             <Dots />
           </div>
         ) : state.phase === 'roasting' ? (
-          <div className="text-4xl font-black uppercase tracking-[0.2em] text-accent">The Roast</div>
+          <div className="text-5xl font-black uppercase tracking-[0.2em] text-accent">The Roast</div>
         ) : (
-          <h1 className="text-5xl font-black tracking-tight text-ink-100">
+          <h1 className="text-6xl font-black tracking-tight text-ink-100">
             You&rsquo;re up{firstName ? `, ${firstName}` : ''}.
           </h1>
         )}
@@ -86,7 +86,7 @@ function ConversationView({ state }: { state: SessionState }) {
       {/* Live feed: last few turns, newest largest, older dimmed. */}
       <div className="mt-10 flex flex-1 flex-col justify-end gap-7 overflow-hidden">
         {recent.length === 0 ? (
-          <p className="text-3xl text-ink-400">Listening&hellip;</p>
+          <p className="text-4xl text-ink-400">Listening&hellip;</p>
         ) : (
           recent.map((t, idx) => {
             const isNewest = idx === recent.length - 1;
@@ -97,7 +97,7 @@ function ConversationView({ state }: { state: SessionState }) {
                 className={isNewest ? 'opacity-100' : 'opacity-40'}
               >
                 <div
-                  className={`mb-1 text-xl font-bold uppercase tracking-[0.15em] ${
+                  className={`mb-1 text-2xl font-bold uppercase tracking-[0.15em] ${
                     isFounder ? 'text-ink-400' : 'text-accent'
                   }`}
                 >
@@ -105,7 +105,7 @@ function ConversationView({ state }: { state: SessionState }) {
                 </div>
                 <p
                   className={`${
-                    isNewest ? 'text-5xl text-ink-100' : 'text-3xl text-ink-300'
+                    isNewest ? 'text-6xl text-ink-100' : 'text-4xl text-ink-300'
                   } font-normal leading-tight tracking-tight`}
                 >
                   {t.text}
@@ -137,7 +137,7 @@ function NextUp({ state }: { state: SessionState }) {
   if (state.queue.length === 0) return null;
   const firstName = state.queue[0].name.trim().split(/\s+/)[0];
   return (
-    <div className="fixed bottom-4 right-4 z-10 rounded-full bg-ink-800/85 px-5 py-2 text-2xl">
+    <div className="fixed bottom-4 right-4 z-10 rounded-full bg-ink-800/85 px-6 py-3 text-3xl">
       <span className="text-ink-400">Next up: </span>
       <span className="font-bold text-ink-100">{firstName}</span>
       <span className="text-ink-400"> &middot; {state.queue.length} in line</span>
@@ -171,24 +171,24 @@ function Attract() {
 
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
-      <Brand className="text-2xl" />
+      <Brand className="text-5xl" />
       <div>
-        <h1 className="max-w-5xl text-7xl font-black leading-[1.05] tracking-tight text-balance">
+        <h1 className="max-w-6xl text-8xl font-black leading-[1.05] tracking-tight text-balance">
           Tell us what you&rsquo;re building.
           <br />
           Get <span className="text-accent">roasted</span> in two minutes.
         </h1>
-        <div className="mt-12 h-16">
+        <div className="mt-12 h-20">
           <p
             key={i}
-            className="text-4xl text-ink-200"
+            className="text-5xl text-ink-200"
             style={{ animation: 'fadeInOut 4s ease-in-out' }}
           >
             {ATTRACT_LINES[i]}
           </p>
         </div>
       </div>
-      <div className="text-2xl text-ink-400">
+      <div className="text-3xl text-white">
         Sign in at the tablet &rarr; take the chair &rarr; brace yourself.
       </div>
     </div>
@@ -203,15 +203,15 @@ function RoastCard({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
-      <Brand className="text-2xl" />
+      <Brand className="text-5xl" />
       <div className="flex flex-1 items-center">
-        <blockquote className="max-w-6xl font-serif text-7xl leading-[1.08] tracking-tight text-balance">
+        <blockquote className="max-w-6xl font-serif text-8xl leading-[1.08] tracking-tight text-balance">
           <span className="text-accent">&ldquo;</span>
           {punchline}
           <span className="text-accent">&rdquo;</span>
         </blockquote>
       </div>
-      <div className="text-3xl text-ink-200">
+      <div className="text-4xl text-ink-200">
         Roasted at <span className="font-bold text-ink-100">.local</span> &mdash; your
         recording is on its way.
       </div>

@@ -220,14 +220,14 @@ function StationInner() {
   if (!kioskReady) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-10 text-center">
-        <div className="text-4xl font-extrabold">Booth setup</div>
-        <p className="mt-4 max-w-md text-xl text-ink-200">
+        <div className="text-5xl font-extrabold">Booth setup</div>
+        <p className="mt-4 max-w-xl text-2xl text-ink-200">
           {videoEnabled
             ? 'Tap once to enable the camera, microphone, and audio for this station.'
             : 'Tap once to enable the microphone and audio for this station.'}
         </p>
         <button
-          className="mt-10 rounded-xl bg-accent px-10 py-5 text-2xl font-bold text-ink-900"
+          className="mt-10 rounded-xl bg-accent px-10 py-5 text-3xl font-bold text-ink-900"
           onClick={async () => {
             try {
               await navigator.mediaDevices.getUserMedia({
@@ -247,7 +247,7 @@ function StationInner() {
         >
           Start kiosk
         </button>
-        {micError && <p className="mt-6 text-lg text-red-400">{micError}</p>}
+        {micError && <p className="mt-6 text-xl text-red-400">{micError}</p>}
       </div>
     );
   }
@@ -278,11 +278,11 @@ function StationInner() {
       content = (
         <Center>
           <div className="text-center">
-            <div className="text-4xl font-bold text-ink-200">
+            <div className="text-5xl font-bold text-ink-200">
               You&rsquo;re up{state.founder ? `, ${state.founder.name}` : ''}
             </div>
             <button
-              className="mt-10 rounded-2xl bg-accent px-16 py-8 text-4xl font-black text-ink-900"
+              className="mt-10 rounded-2xl bg-accent px-16 py-8 text-5xl font-black text-ink-900"
               onClick={() => sendCommand({ type: 'start' })}
             >
               Begin
@@ -306,12 +306,12 @@ function StationInner() {
       content = (
         <Center>
           <div className="text-center">
-            <div className="text-5xl font-black">Thanks &mdash; that&rsquo;s a wrap</div>
-            <div className="mt-4 text-2xl text-ink-400">
+            <div className="text-6xl font-black">Thanks &mdash; that&rsquo;s a wrap</div>
+            <div className="mt-4 text-3xl text-ink-400">
               Your {videoEnabled ? 'video' : 'recording'} is on its way.
             </div>
             <button
-              className="mt-10 rounded-xl bg-ink-600 px-10 py-5 text-2xl font-bold text-ink-100 hover:bg-ink-400"
+              className="mt-10 rounded-xl bg-ink-600 px-10 py-5 text-3xl font-bold text-ink-100 hover:bg-ink-400"
               onClick={() => sendCommand({ type: 'next' })}
             >
               Done &mdash; next founder
@@ -324,7 +324,7 @@ function StationInner() {
     default:
       content = (
         <Center>
-          <div className="text-3xl text-ink-400">Waiting for the next founder&hellip;</div>
+          <div className="text-4xl text-ink-400">Waiting for the next founder&hellip;</div>
         </Center>
       );
   }
@@ -358,10 +358,10 @@ function QuestionView({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col justify-center px-10">
-      <div className="text-xl font-semibold text-accent">
+      <div className="text-2xl font-semibold text-accent">
         Question {idx + 1} of 3
       </div>
-      <div className="mt-6 text-6xl font-black leading-tight tracking-tight text-balance">
+      <div className="mt-6 text-7xl font-black leading-tight tracking-tight text-balance">
         {QUESTIONS[idx]}
       </div>
       <div className="mt-12 h-2 w-full overflow-hidden rounded-full bg-ink-700">
@@ -371,7 +371,7 @@ function QuestionView({ state }: { state: SessionState }) {
         />
       </div>
       {state.paused && (
-        <div className="mt-6 text-2xl text-yellow-400">Paused</div>
+        <div className="mt-6 text-3xl text-yellow-400">Paused</div>
       )}
     </div>
   );
@@ -407,8 +407,8 @@ function Listening() {
         />
         <span className="h-24 w-24 rounded-full bg-accent" />
       </div>
-      <div className="text-3xl font-bold text-ink-100">Here comes your roast&hellip;</div>
-      <div className="text-xl text-ink-400">Watch the big screen.</div>
+      <div className="text-4xl font-bold text-ink-100">Here comes your roast&hellip;</div>
+      <div className="text-2xl text-ink-400">Watch the big screen.</div>
     </div>
   );
 }
