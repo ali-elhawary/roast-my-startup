@@ -24,6 +24,18 @@ function fontFaceCss(): string {
 }
 const FONT_FACE = fontFaceCss();
 
+// Embed the branded /audience background (downscaled + side-cropped) so the
+// emailed, GCS-hosted watch page shows it without any external fetch.
+function bgDataUrl(): string {
+  try {
+    const p = path.resolve(process.cwd(), 'public/audience-bg-sm.jpg');
+    return `data:image/jpeg;base64,${readFileSync(p).toString('base64')}`;
+  } catch {
+    return '';
+  }
+}
+const BG_DATA = bgDataUrl();
+
 // Shared dark player shell. Local mode (watchPage) serves this straight from the
 // Node server at /watch/:id; cloud mode (videoPlayerPage) renders the same shell
 // with signed URLs, then uploads the HTML to GCS as the watch destination.
@@ -48,7 +60,11 @@ function renderPlayer(opts: {
   <style>
     :root { color-scheme: dark; }
     ${FONT_FACE}
-    body { margin: 0; background: #0a0a0b; color: #d8d8de;
+    body { margin: 0; color: #d8d8de;
+      background-color: #0a0a0b;
+      background-image: linear-gradient(rgba(10,10,11,0.72), rgba(10,10,11,0.86))${BG_DATA ? `, url("${BG_DATA}")` : ''};
+      background-size: cover; background-position: center; background-repeat: no-repeat;
+      background-attachment: fixed;
       font-family: 'Sohne', system-ui, -apple-system, Segoe UI, sans-serif;
       display: flex; min-height: 100vh; flex-direction: column;
       align-items: center; justify-content: center; padding: 24px; gap: 20px; }

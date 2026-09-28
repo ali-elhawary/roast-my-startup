@@ -162,55 +162,32 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-const ENCODE_ARGS = [
+// Founder full-frame at 1080p. The /audience-style background lives on the watch
+// PAGE (watchPage.ts), not baked into the video.
+const VIDEO_ARGS = [
   '-c:v', 'libx264',
   '-preset', 'superfast', // booth turnaround > a few % of file size
   '-crf', '23',
-  '-pix_fmt', 'yuv420p', // broad phone/browser compatibility (bg is a JPEG)
+  '-pix_fmt', 'yuv420p', // broad phone/browser compatibility
+  '-vf', 'scale=-2:1080', // cap height at 1080p, keep aspect (even width)
   '-threads', '0', // use all cores
 ];
 const AUDIO_ARGS = ['-c:a', 'aac', '-b:a', '128k'];
-
-// Branded 1080p deliverable: the founder camera composited as a large window
-// (thin frame) over the /audience background image.
-const BG_PATH = path.resolve(process.cwd(), 'public/audience-bg.jpg');
-const CANVAS_W = 1920;
-const CANVAS_H = 1080;
-const CAM_W = 1600; // founder window (centered) -> 160px side / 90px top border
-const CAM_H = 900;
-
-// filter_complex that fills the canvas with the (zoom-cropped) background and
-// overlays the camera window centered. bgIdx/camIdx are the ffmpeg input indices.
-function compositeFilter(bgIdx: number, camIdx: number): string {
-  const ox = (CANVAS_W - CAM_W) / 2;
-  const oy = (CANVAS_H - CAM_H) / 2;
-  return (
-    // Zoom ~1.12 then crop to canvas, matching /audience so the baked-in side
-    // borders of the image are cropped off.
-    `[${bgIdx}:v]scale=${Math.round(CANVAS_W * 1.12)}:-2,crop=${CANVAS_W}:${CANVAS_H},setsar=1[bg];` +
-    `[${camIdx}:v]scale=${CAM_W}:${CAM_H}:force_original_aspect_ratio=increase,crop=${CAM_W}:${CAM_H},setsar=1[cam];` +
-    `[bg][cam]overlay=${ox}:${oy}[v]`
-  );
-}
 
 // Transcode using the camera recording's own audio (fallback path).
 function transcode(input: string, output: string): Promise<void> {
   return runFfmpeg([
     '-y',
     '-i', input,
-    '-i', BG_PATH,
-    '-filter_complex', compositeFilter(1, 0),
-    '-map', '[v]',
-    '-map', '0:a:0',
-    ...ENCODE_ARGS,
+    ...VIDEO_ARGS,
     ...AUDIO_ARGS,
     '-movflags', '+faststart',
     output,
   ]);
 }
 
-// Mux: video from the camera recording (composited over the brand background) +
-// audio from the ElevenLabs conversation, aligned by offsetMs.
+// Mux: video from the camera recording + audio from the ElevenLabs conversation,
+// aligned by offsetMs (conversationStart - recordStart).
 function transcodeWithExternalAudio(
   videoInput: string,
   audioInput: string,
@@ -226,13 +203,10 @@ function transcodeWithExternalAudio(
     // Recording began after the conversation: skip the audio's early portion.
     args.push('-ss', Math.abs(offsetSec).toFixed(3), '-i', audioInput);
   }
-  // Inputs: 0=camera, 1=audio, 2=background.
   args.push(
-    '-i', BG_PATH,
-    '-filter_complex', compositeFilter(2, 0),
-    '-map', '[v]',
+    '-map', '0:v:0',
     '-map', '1:a:0',
-    ...ENCODE_ARGS,
+    ...VIDEO_ARGS,
     ...AUDIO_ARGS,
     '-movflags', '+faststart',
     output,

@@ -157,8 +157,9 @@ export function reduce(
         return { ...state, answers };
       }
       const next = nextQuestionPhase(state.phase)!;
-      // Clear the live answer so the next question starts blank.
-      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false, liveTranscript: '' };
+      // Keep the previous answer on screen; it lingers through the roaster's next
+      // question and is overwritten when the founder starts the next answer.
+      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false };
     }
 
     case 'skip': {
@@ -172,7 +173,6 @@ export function reduce(
         phaseStartedAt: now,
         paused: false,
         skipSignal: state.skipSignal + 1,
-        liveTranscript: '',
       };
     }
 
