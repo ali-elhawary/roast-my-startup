@@ -1,5 +1,19 @@
 import { useCallback, useRef, useState } from 'react';
 
+// 720p30 cap. `ideal` alone is a soft hint that 4K webcams ignore (handing us a
+// 2160p stream whose VP9 decode took minutes to transcode); `max` forces the
+// camera down to what we actually ship. Shared by the preview + the recording so
+// they use one stream.
+function videoConstraints(deviceId: string): MediaTrackConstraints {
+  const c: MediaTrackConstraints = {
+    width: { ideal: 1280, max: 1280 },
+    height: { ideal: 720, max: 720 },
+    frameRate: { ideal: 30, max: 30 },
+  };
+  if (deviceId) c.deviceId = { exact: deviceId };
+  return c;
+}
+
 // In-app video capture for /station (Option 1). Records the selected camera +
 // mic with MediaRecorder for the duration of the live session, then uploads the
 // blob to the server, which transcodes it and builds captions. Gated by
@@ -39,7 +53,11 @@ export function useVideoRecorder() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string>('');
   const [status, setStatus] = useState<RecorderStatus>('idle');
+  // Live camera stream, exposed so /station can render a self-view. Persistent:
+  // opened once, reused across founders, torn down only on unmount.
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const openedDeviceRef = useRef<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordStartRef = useRef<number>(0);
@@ -57,27 +75,59 @@ export function useVideoRecorder() {
     }
   }, []);
 
+  // Open (or re-open, if the device changed) the persistent camera+mic stream for
+  // the live self-view. Idempotent for the same device. Camera failures are
+  // swallowed so the self-view just stays hidden.
+  const openCamera = useCallback(async () => {
+    if (!VIDEO_ENABLED) return;
+    if (recorderRef.current) return; // don't disturb an active recording
+    if (streamRef.current && openedDeviceRef.current === deviceId) return;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints(deviceId),
+        audio: true,
+      });
+      streamRef.current = s;
+      openedDeviceRef.current = deviceId;
+      setStream(s);
+    } catch (err) {
+      console.warn('[video] camera open failed', err);
+      setStream(null);
+    }
+  }, [deviceId]);
+
+  // Stop the camera entirely (and any recording). For component unmount.
+  const closeCamera = useCallback(() => {
+    try {
+      recorderRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
+    recorderRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    openedDeviceRef.current = null;
+    setStream(null);
+  }, []);
+
   const start = useCallback(async () => {
     if (!VIDEO_ENABLED) return;
     try {
-      // Hard-cap the capture at 720p30. `ideal` alone is a soft hint that 4K
-      // webcams ignore, handing us a 2160p stream whose VP9 decode took minutes
-      // to transcode. `max` forces the camera down to the resolution we actually
-      // ship, so the transcode is fast.
-      const videoConstraints: MediaTrackConstraints = {
-        width: { ideal: 1280, max: 1280 },
-        height: { ideal: 720, max: 720 },
-        frameRate: { ideal: 30, max: 30 },
-      };
-      if (deviceId) videoConstraints.deviceId = { exact: deviceId };
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: true,
-      });
-      streamRef.current = stream;
+      // Reuse the already-open preview stream; open one if it isn't up yet.
+      if (!streamRef.current) {
+        const s = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints(deviceId),
+          audio: true,
+        });
+        streamRef.current = s;
+        openedDeviceRef.current = deviceId;
+        setStream(s);
+      }
       const mimeType = pickMimeType();
       const recorder = new MediaRecorder(
-        stream,
+        streamRef.current,
         mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined,
       );
       chunksRef.current = [];
@@ -95,6 +145,7 @@ export function useVideoRecorder() {
   }, [deviceId]);
 
   // Abandon the current recording without uploading (operator restart / discard).
+  // Keeps the camera stream alive for the next founder's self-view.
   const discard = useCallback(() => {
     const recorder = recorderRef.current;
     recorderRef.current = null;
@@ -103,8 +154,6 @@ export function useVideoRecorder() {
     } catch {
       /* ignore */
     }
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
     chunksRef.current = [];
     setStatus('idle');
   }, []);
@@ -124,8 +173,8 @@ export function useVideoRecorder() {
       }
     });
 
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    // Leave the camera stream running for the next founder; just clear chunks.
+    chunksRef.current = [];
     if (!blob.size) {
       setStatus('error');
       return;
@@ -176,6 +225,9 @@ export function useVideoRecorder() {
     deviceId,
     setDeviceId,
     enumerate,
+    openCamera,
+    closeCamera,
+    stream,
     start,
     stopAndUpload,
     discard,

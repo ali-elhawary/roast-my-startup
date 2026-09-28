@@ -36,6 +36,9 @@ function StationInner() {
     deviceId: cameraId,
     setDeviceId: setCameraId,
     enumerate: enumerateCameras,
+    openCamera,
+    closeCamera,
+    stream: cameraStream,
     start: startVideo,
     stopAndUpload: stopVideo,
     discard: discardVideo,
@@ -176,6 +179,16 @@ function StationInner() {
   // Never leak pending teardown timers if the station unmounts.
   useEffect(() => clearTeardownTimers, [clearTeardownTimers]);
 
+  // Open the persistent camera once the kiosk is unlocked (and re-open if the
+  // operator switches camera), so the self-view is live from the ready screen.
+  // Skipped while recording so it can't disturb an in-progress capture.
+  useEffect(() => {
+    if (kioskReady && videoEnabled && recorderStatus !== 'recording') void openCamera();
+  }, [kioskReady, videoEnabled, cameraId, recorderStatus, openCamera]);
+
+  // Release the camera when the station unmounts.
+  useEffect(() => closeCamera, [closeCamera]);
+
   // Mirror the recorder's status to the server so /operator can see capture +
   // upload progress live.
   useEffect(() => {
@@ -230,11 +243,14 @@ function StationInner() {
           className="mt-10 rounded-xl bg-accent px-10 py-5 text-3xl font-bold text-ink-900"
           onClick={async () => {
             try {
-              await navigator.mediaDevices.getUserMedia({
+              const probe = await navigator.mediaDevices.getUserMedia({
                 audio: true,
                 video: videoEnabled,
               });
               if (videoEnabled) await enumerateCameras();
+              // Release the permission-probe stream; the persistent self-view
+              // stream is opened by the effect once kioskReady flips true.
+              probe.getTracks().forEach((t) => t.stop());
               setKioskReady(true);
             } catch {
               setMicError(
@@ -329,9 +345,15 @@ function StationInner() {
       );
   }
 
+  const showSelfView =
+    videoEnabled &&
+    !!cameraStream &&
+    ['ready', 'q1', 'q2', 'q3', 'generating', 'roasting'].includes(state.phase);
+
   return (
     <>
       {cameraPicker}
+      {showSelfView && <SelfView stream={cameraStream} />}
       {videoEnabled && recorderStatus === 'recording' && (
         <div className="fixed left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-sm font-bold">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
@@ -393,6 +415,28 @@ function QuestionView({ state }: { state: SessionState }) {
       {state.paused && (
         <div className="mt-6 text-3xl text-yellow-400">Paused</div>
       )}
+    </div>
+  );
+}
+
+// Mirrored corner self-view so the founder can see themselves during capture.
+// Mirror is CSS-only; the recorded video stays correct (unmirrored).
+function SelfView({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  return (
+    <div className="fixed bottom-4 right-4 z-20 w-80 overflow-hidden rounded-xl border-2 border-ink-600 bg-black shadow-lg">
+      <video
+        ref={ref}
+        autoPlay
+        muted
+        playsInline
+        className="aspect-video w-full object-cover"
+        style={{ transform: 'scaleX(-1)' }}
+      />
+      <div className="absolute bottom-1 left-2 text-sm font-bold text-white/80">You</div>
     </div>
   );
 }
