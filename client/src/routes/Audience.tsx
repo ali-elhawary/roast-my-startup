@@ -34,7 +34,7 @@ export default function Audience() {
     <div className="relative h-full overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0 bg-ink-900 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/audience-bg.jpg)' }}
+        style={{ backgroundImage: 'url(/audience-bg.jpg)', transform: 'scale(1.12)' }}
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-900/75 via-ink-900/55 to-ink-900/85" />
       <div className="relative h-full">
