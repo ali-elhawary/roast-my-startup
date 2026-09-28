@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 
-// 720p30 cap. `ideal` alone is a soft hint that 4K webcams ignore (handing us a
+// 1080p30 cap. `ideal` alone is a soft hint that 4K webcams ignore (handing us a
 // 2160p stream whose VP9 decode took minutes to transcode); `max` forces the
 // camera down to what we actually ship. Shared by the preview + the recording so
 // they use one stream.
 function videoConstraints(deviceId: string): MediaTrackConstraints {
   const c: MediaTrackConstraints = {
-    width: { ideal: 1280, max: 1280 },
-    height: { ideal: 720, max: 720 },
+    width: { ideal: 1920, max: 1920 },
+    height: { ideal: 1080, max: 1080 },
     frameRate: { ideal: 30, max: 30 },
   };
   if (deviceId) c.deviceId = { exact: deviceId };
@@ -128,7 +128,7 @@ export function useVideoRecorder() {
       const mimeType = pickMimeType();
       const recorder = new MediaRecorder(
         streamRef.current,
-        mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined,
+        mimeType ? { mimeType, videoBitsPerSecond: 6_000_000 } : undefined,
       );
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {

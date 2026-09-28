@@ -2,6 +2,28 @@
 // shows the MP4 with the caption track. Booth-grade; a production build would
 // likely serve this from a CDN with signed URLs.
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
+// Embed the MongoDB brand fonts (base64) so the player matches the app even when
+// served from GCS (no cross-origin font fetch). Söhne carries body + captions;
+// its 600-900 range is Söhne Condensed, so bold headings render condensed.
+function fontFaceCss(): string {
+  try {
+    const dir = path.resolve(process.cwd(), 'public/fonts');
+    const regular = readFileSync(path.join(dir, 'Sohne-Regular.ttf')).toString('base64');
+    const condensed = readFileSync(path.join(dir, 'SohneCondensed-Bold.ttf')).toString('base64');
+    return `
+    @font-face { font-family:'Sohne'; font-style:normal; font-weight:400 500; font-display:swap;
+      src:url(data:font/ttf;base64,${regular}) format('truetype'); }
+    @font-face { font-family:'Sohne'; font-style:normal; font-weight:600 900; font-display:swap;
+      src:url(data:font/ttf;base64,${condensed}) format('truetype'); }`;
+  } catch {
+    return '';
+  }
+}
+const FONT_FACE = fontFaceCss();
+
 // Shared dark player shell. Local mode (watchPage) serves this straight from the
 // Node server at /watch/:id; cloud mode (videoPlayerPage) renders the same shell
 // with signed URLs, then uploads the HTML to GCS as the watch destination.
@@ -25,18 +47,20 @@ function renderPlayer(opts: {
   <title>Your Roast My Startup video</title>
   <style>
     :root { color-scheme: dark; }
+    ${FONT_FACE}
     body { margin: 0; background: #0a0a0b; color: #d8d8de;
-      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      font-family: 'Sohne', system-ui, -apple-system, Segoe UI, sans-serif;
       display: flex; min-height: 100vh; flex-direction: column;
       align-items: center; justify-content: center; padding: 24px; gap: 20px; }
     .brand { font-weight: 800; letter-spacing: -0.01em; color: #a8a8b3; }
     .brand b { color: #d8d8de; }
-    h1 { font-size: 1.5rem; margin: 0; text-align: center; }
+    h1 { font-size: 1.5rem; margin: 0; text-align: center; font-weight: 800; }
     .accent { color: #39FF6A; }
     video { width: min(100%, 900px); border-radius: 12px; background: #000;
       outline: none; }
     /* Keep captions to a small, unobtrusive band at the bottom. */
     video::cue {
+      font-family: 'Sohne', system-ui, sans-serif;
       font-size: 0.85rem;
       line-height: 1.25;
       color: #fff;
