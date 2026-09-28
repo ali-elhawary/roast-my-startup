@@ -34,17 +34,9 @@ export default function Audience() {
     <div className="relative h-full overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0 bg-ink-900 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/audience-bg.png)', transform: 'scale(1.08)' }}
+        style={{ backgroundImage: 'url(/audience-bg.jpg)' }}
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-900/75 via-ink-900/55 to-ink-900/85" />
-      {/* Cover the MongoDB logo baked into the bottom-right of the background image. */}
-      <div
-        className="pointer-events-none absolute bottom-0 right-0 h-48 w-96"
-        style={{
-          background:
-            'radial-gradient(130% 130% at 100% 100%, #0a0a0b 45%, rgba(10,10,11,0) 78%)',
-        }}
-      />
       <div className="relative h-full">
         {content}
         <NextUp state={state} />
