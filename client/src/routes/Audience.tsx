@@ -174,7 +174,7 @@ function Attract() {
         </div>
       </div>
       <div className="text-3xl text-white">
-        Sign in at the tablet &rarr; take the chair &rarr; brace yourself.
+        Sign in at the laptop &rarr; take the chair &rarr; brace yourself.
       </div>
     </div>
   );
@@ -197,8 +197,8 @@ function RoastCard({ state }: { state: SessionState }) {
         </blockquote>
       </div>
       <div className="text-4xl text-ink-200">
-        Roasted at <span className="font-bold text-ink-100">.local</span> &mdash; your
-        recording is on its way.
+        Roasted at <span className="font-bold text-ink-100">.local</span> &mdash; you could be
+        next. Sign in at the laptop.
       </div>
     </div>
   );
