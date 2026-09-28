@@ -135,7 +135,38 @@ async function createTool(cfg: ToolConfig): Promise<string> {
   return id;
 }
 
+// Read the agent's current client_events so we can APPEND to it rather than
+// overwrite (dropping audio/user_transcript/tool_call would break the agent).
+async function currentClientEvents(): Promise<string[]> {
+  const res = await fetch(`${API}/agents/${AGENT_ID}`, { headers });
+  if (!res.ok) return [];
+  const a = (await res.json()) as any;
+  const list = a.conversation_config?.conversation?.client_events;
+  return Array.isArray(list) ? (list as string[]) : [];
+}
+
 async function patchAgent(toolIds: string[]) {
+  // Ensure the live-transcript events are streamed. Start from the current list
+  // (or a safe default if empty) so nothing critical is removed, then add the
+  // final + tentative user-transcript events that drive the live audience view.
+  const current = await currentClientEvents();
+  const events = new Set<string>(
+    current.length
+      ? current
+      : [
+          'audio',
+          'interruption',
+          'user_transcript',
+          'agent_response',
+          'agent_response_correction',
+          'client_tool_call',
+          'ping',
+        ],
+  );
+  events.add('user_transcript');
+  events.add('tentative_user_transcript');
+  const clientEvents = Array.from(events);
+
   const res = await fetch(`${API}/agents/${AGENT_ID}`, {
     method: 'PATCH',
     headers,
@@ -145,16 +176,19 @@ async function patchAgent(toolIds: string[]) {
           first_message: FIRST_MESSAGE,
           prompt: { prompt: SYSTEM_PROMPT, tool_ids: toolIds },
         },
-        // 'patient' so a breath mid-answer isn't read as end-of-turn, and a 10s
+        // 'patient' so a breath mid-answer isn't read as end-of-turn, and a 16s
         // turn_timeout so a founder gathering their thoughts isn't cut off.
         turn: { turn_eagerness: 'patient', turn_timeout: 16 },
         // Sassier delivery: lower stability = more expressive/playful variation,
         // slightly faster = snappier, punchier timing.
         tts: { stability: 0.35, speed: 1.05 },
+        // Stream partial + final user transcripts for the live audience captions.
+        conversation: { client_events: clientEvents },
       },
     }),
   });
   if (!res.ok) throw new Error(`patch agent failed: ${res.status} ${await res.text()}`);
+  console.log('client_events:', clientEvents.join(', '));
 }
 
 async function main() {
@@ -187,6 +221,7 @@ async function main() {
   console.log('tool_ids:', prompt.tool_ids);
   console.log('tts:', { stability: tts.stability, speed: tts.speed, similarity_boost: tts.similarity_boost });
   console.log('turn:', { turn_eagerness: turn.turn_eagerness, turn_timeout: turn.turn_timeout });
+  console.log('client_events:', a.conversation_config?.conversation?.client_events);
   console.log('\nAGENT CONFIGURED');
 }
 

@@ -5,16 +5,12 @@
 
 import type { Command } from '../shared/types';
 import { validateRoast } from '../shared/validate';
-import { QUESTIONS } from '../shared/constants';
 import {
   FAKE_ANSWERS,
   FAKE_FOUNDER,
   FAKE_ROASTS,
   FALLBACK_ROAST,
 } from './mockRoasts';
-
-const FAKE_CLOSING =
-  "That's your roast — the recording's on its way to your inbox. Ask us about MongoDB for Startups on your way out.";
 
 export type FakeVariant = 'pass' | 'banned';
 
@@ -43,9 +39,16 @@ export function runFakeSession(
   const roast = variant === 'banned' ? FAKE_ROASTS.banned : FAKE_ROASTS.pass;
   const spokenRoast = validateRoast(roast.text).ok ? roast.text : FALLBACK_ROAST.text;
 
-  // Transcript feed helper (mirrors the live agent's onMessage relay).
-  const say = (role: 'user' | 'agent', text: string) =>
-    dispatch({ type: 'transcriptTurn', role, text });
+  // Type an answer word-by-word to mimic the live user-transcript feed that
+  // drives the audience captions.
+  const typeAnswer = (startMs: number, text: string) => {
+    const words = text.split(/\s+/).filter(Boolean);
+    words.forEach((_, i) => {
+      at(startMs + i * 350, () =>
+        dispatch({ type: 'liveTranscript', text: words.slice(0, i + 1).join(' ') }),
+      );
+    });
+  };
 
   at(0, {
     type: 'signin',
@@ -57,17 +60,14 @@ export function runFakeSession(
   at(2_000, { type: 'start' });
   at(2_200, { type: 'conversationStarted', conversationId: `fake_${Date.now()}` });
 
-  // Q1
-  at(3_000, () => say('agent', QUESTIONS[0]));
-  at(7_000, () => say('user', FAKE_ANSWERS.building));
+  // Q1: founder answers word-by-word, then captureAnswer advances.
+  typeAnswer(4_000, FAKE_ANSWERS.building);
   at(8_000, { type: 'answer', index: 1, text: FAKE_ANSWERS.building });
   // Q2
-  at(12_000, () => say('agent', QUESTIONS[1]));
-  at(19_000, () => say('user', FAKE_ANSWERS.audience));
+  typeAnswer(13_000, FAKE_ANSWERS.audience);
   at(20_000, { type: 'answer', index: 2, text: FAKE_ANSWERS.audience });
   // Q3
-  at(26_000, () => say('agent', QUESTIONS[2]));
-  at(34_000, () => say('user', FAKE_ANSWERS.differentiation));
+  typeAnswer(27_000, FAKE_ANSWERS.differentiation);
   at(35_000, { type: 'answer', index: 3, text: FAKE_ANSWERS.differentiation });
 
   at(40_000, () => {
@@ -80,8 +80,5 @@ export function runFakeSession(
       source: spokenRoast === roast.text ? 'generated' : 'fallback',
     });
   });
-  // The roaster speaks the roast, then the closing line (feeds the transcript).
-  at(41_000, () => say('agent', spokenRoast));
-  at(60_000, () => say('agent', FAKE_CLOSING));
   at(95_000, { type: 'complete' });
 }

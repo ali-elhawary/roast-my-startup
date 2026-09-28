@@ -41,7 +41,7 @@ export function initialState(): SessionState {
     queue: [],
     answers: emptyAnswers(),
     roast: null,
-    transcript: [],
+    liveTranscript: '',
     phaseStartedAt: null,
     error: null,
     skipSignal: 0,
@@ -157,7 +157,8 @@ export function reduce(
         return { ...state, answers };
       }
       const next = nextQuestionPhase(state.phase)!;
-      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false };
+      // Clear the live answer so the next question starts blank.
+      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false, liveTranscript: '' };
     }
 
     case 'skip': {
@@ -171,26 +172,15 @@ export function reduce(
         phaseStartedAt: now,
         paused: false,
         skipSignal: state.skipSignal + 1,
+        liveTranscript: '',
       };
     }
 
-    case 'transcriptTurn': {
-      // Live caption feed relayed from /station's agent. Display-only: it never
-      // changes phase. Ignore stray turns when no session is active.
-      if (state.phase === 'idle' || !state.sessionId) return state;
-      const text = command.text.trim();
-      if (!text) return state;
-      const entry = { role: command.role, text, at: now };
-      // Coalesce repeated same-role finals (SDK can re-emit a growing message)
-      // by replacing the last entry when it's the same speaker and a prefix.
-      const last = state.transcript[state.transcript.length - 1];
-      if (last && last.role === entry.role && text.startsWith(last.text)) {
-        return {
-          ...state,
-          transcript: [...state.transcript.slice(0, -1), entry],
-        };
-      }
-      return { ...state, transcript: [...state.transcript, entry] };
+    case 'liveTranscript': {
+      // Live word-by-word founder answer relayed from /station's agent. Display
+      // only; never changes phase, and only meaningful while a question is up.
+      if (!QUESTION_PHASES.includes(state.phase)) return state;
+      return { ...state, liveTranscript: command.text };
     }
 
     case 'roast': {
@@ -201,7 +191,7 @@ export function reduce(
         category: command.category,
         source: command.source,
       };
-      return { ...state, roast, phase: 'roasting', phaseStartedAt: now };
+      return { ...state, roast, phase: 'roasting', phaseStartedAt: now, liveTranscript: '' };
     }
 
     case 'complete': {

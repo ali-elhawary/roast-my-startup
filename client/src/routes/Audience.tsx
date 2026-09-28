@@ -45,20 +45,21 @@ export default function Audience() {
   );
 }
 
-// Live turn-by-turn transcript with the current question, shown through the whole
-// conversation (q1..q3, generating, roasting). The roast itself arrives as the
-// roaster's turns in the feed, so it reads live instead of a separate reveal.
+// Question pinned at top + the founder's live word-by-word answer below (from the
+// ElevenLabs tentative/final user transcript). On the next question the header
+// swaps and the answer area resets. The roast phase shows the roast text.
 function ConversationView({ state }: { state: SessionState }) {
   const activeIndex =
     state.phase === 'q1' ? 0 : state.phase === 'q2' ? 1 : state.phase === 'q3' ? 2 : -1;
   const currentQuestion = activeIndex >= 0 ? QUESTIONS[activeIndex as 0 | 1 | 2] : null;
-  const recent = state.transcript.slice(-4);
   const firstName = state.founder?.name.trim().split(/\s+/)[0];
+  const roastText = state.roast?.text ?? '';
 
   return (
     <div className="flex h-full flex-col px-16 py-12">
       <Brand className="text-4xl" />
 
+      {/* Header: the pinned question (below the brand) or phase label. */}
       <div className="mt-8 min-h-[6rem]">
         {currentQuestion ? (
           <div className="flex items-center gap-6">
@@ -83,37 +84,21 @@ function ConversationView({ state }: { state: SessionState }) {
         )}
       </div>
 
-      {/* Live feed: last few turns, newest largest, older dimmed. */}
-      <div className="mt-10 flex flex-1 flex-col justify-end gap-7 overflow-hidden">
-        {recent.length === 0 ? (
-          <p className="text-4xl text-ink-400">Listening&hellip;</p>
-        ) : (
-          recent.map((t, idx) => {
-            const isNewest = idx === recent.length - 1;
-            const isFounder = t.role === 'user';
-            return (
-              <div
-                key={`${t.at}-${idx}`}
-                className={isNewest ? 'opacity-100' : 'opacity-40'}
-              >
-                <div
-                  className={`mb-1 text-2xl font-bold uppercase tracking-[0.15em] ${
-                    isFounder ? 'text-ink-400' : 'text-accent'
-                  }`}
-                >
-                  {isFounder ? 'Founder' : 'Roaster'}
-                </div>
-                <p
-                  className={`${
-                    isNewest ? 'text-6xl text-ink-100' : 'text-4xl text-ink-300'
-                  } font-normal leading-tight tracking-tight`}
-                >
-                  {t.text}
-                </p>
-              </div>
-            );
-          })
-        )}
+      {/* Body: live answer during Q&A, or the roast text while roasting. */}
+      <div className="mt-10 flex-1 overflow-hidden">
+        {currentQuestion ? (
+          state.liveTranscript ? (
+            <p className="text-6xl font-normal leading-tight tracking-tight text-ink-100">
+              {state.liveTranscript}
+            </p>
+          ) : (
+            <p className="text-4xl text-ink-400">Listening&hellip; take your time.</p>
+          )
+        ) : state.phase === 'roasting' && roastText ? (
+          <p className="text-5xl font-black leading-snug tracking-tight text-ink-100">
+            {roastText}
+          </p>
+        ) : null}
       </div>
     </div>
   );

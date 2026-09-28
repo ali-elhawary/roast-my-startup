@@ -378,16 +378,9 @@ function QuestionView({ state }: { state: SessionState }) {
   const elapsed = state.phaseStartedAt ? now - state.phaseStartedAt : 0;
   const pct = Math.min(100, (elapsed / QUESTION_TIMEOUT_MS) * 100);
 
-  // The founder's answer so far, so they can see their words and not lose their
-  // thread. Scoped to THIS question via phaseStartedAt (same server clock as the
-  // transcript entries), so a previous answer never lingers.
-  const answerSoFar = state.transcript
-    .filter(
-      (t) => t.role === 'user' && state.phaseStartedAt != null && t.at >= state.phaseStartedAt,
-    )
-    .map((t) => t.text)
-    .join(' ')
-    .trim();
+  // The founder's live answer (word-by-word), so they can see their words and not
+  // lose their thread. Cleared server-side when the question advances.
+  const answerSoFar = state.liveTranscript;
 
   return (
     <div className="flex h-full flex-col justify-center px-10">
