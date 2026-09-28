@@ -123,7 +123,7 @@ export default function Signin() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg border border-ink-600 bg-ink-800 px-4 py-3 text-lg outline-none focus:border-accent"
-            placeholder="Ada Lovelace"
+            placeholder="Jane Doe"
             autoComplete="off"
           />
         </div>
@@ -134,7 +134,7 @@ export default function Signin() {
             type="email"
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-ink-600 bg-ink-800 px-4 py-3 text-lg outline-none focus:border-accent"
-            placeholder="ada@startup.com"
+            placeholder="jane@startup.com"
             autoComplete="off"
           />
         </div>
@@ -144,7 +144,7 @@ export default function Signin() {
             value={company}
             onChange={(e) => setCompany(e.target.value)}
             className="w-full rounded-lg border border-ink-600 bg-ink-800 px-4 py-3 text-lg outline-none focus:border-accent"
-            placeholder="Analytical Engine Co."
+            placeholder="Acme Labs"
             autoComplete="off"
           />
         </div>
