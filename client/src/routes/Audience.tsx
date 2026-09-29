@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/lib/ws';
 import { useNow } from '@/lib/useNow';
+import { FitText } from '@/lib/FitText';
 import { splitSentences } from '@/lib/reveal';
 import { QUESTIONS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
@@ -125,9 +126,14 @@ function ConversationView({ state }: { state: SessionState }) {
             <p className="text-4xl text-ink-400">Listening&hellip; take your time.</p>
           )
         ) : state.phase === 'roasting' && roastText ? (
-          <p className="text-5xl font-black leading-snug tracking-tight text-ink-100">
+          <FitText
+            maxPx={56}
+            minPx={22}
+            refitKey={roastText}
+            className="font-black leading-snug tracking-tight text-ink-100"
+          >
             {roastText}
-          </p>
+          </FitText>
         ) : null}
       </div>
     </div>
@@ -218,11 +224,16 @@ function RoastCard({ state }: { state: SessionState }) {
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
       <div className="flex flex-1 items-center">
-        <blockquote className="max-w-6xl font-serif text-8xl leading-[1.08] tracking-tight text-balance">
+        <FitText
+          maxPx={96}
+          minPx={40}
+          refitKey={punchline}
+          className="max-w-6xl font-serif leading-[1.08] tracking-tight text-balance"
+        >
           <span className="text-accent">&ldquo;</span>
           {punchline}
           <span className="text-accent">&rdquo;</span>
-        </blockquote>
+        </FitText>
       </div>
       <div className="text-4xl text-ink-200">
         Roasted at <span className="font-bold text-ink-100">.local</span> &mdash; you could be
