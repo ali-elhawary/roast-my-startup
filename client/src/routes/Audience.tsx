@@ -4,15 +4,13 @@ import { FitText } from '@/lib/FitText';
 import type { SessionState } from '@shared/types';
 
 // The most important screen. Read from 6-10 feet. It stays on the landing page
-// (rotating sassy quips) for the whole session and only reveals the actual roast
-// the moment the roaster delivers it (roasting -> complete). No live transcript.
+// (headline + rotating sassy quips) the entire time — the roast is never shown
+// here; it only goes to the founder's video/email.
 export default function Audience() {
   const { state } = useSession();
   if (!state) return <Center>Connecting&hellip;</Center>;
 
-  const showRoast =
-    (state.phase === 'roasting' || state.phase === 'complete') && !!state.roast?.text;
-  const content = showRoast ? <RoastCard state={state} /> : <Attract />;
+  const content = <Attract />;
 
   // Brand background image + dark scrim behind every audience state.
   return (
@@ -112,26 +110,4 @@ function Attract() {
   );
 }
 
-function RoastCard({ state }: { state: SessionState }) {
-  const roast = state.roast?.text?.trim() || 'That\u2019s a wrap.';
-  return (
-    <div className="flex h-full flex-col justify-between px-16 py-14">
-      <div className="flex flex-1 items-center">
-        <FitText
-          maxPx={88}
-          minPx={30}
-          refitKey={roast}
-          className="max-w-6xl font-serif leading-[1.12] tracking-tight text-balance text-ink-100"
-        >
-          <span className="text-accent">&ldquo;</span>
-          {roast}
-          <span className="text-accent">&rdquo;</span>
-        </FitText>
-      </div>
-      <div className="text-4xl text-ink-200">
-        Roasted at <span className="font-bold text-ink-100">.local</span> &mdash; you could be
-        next. Sign in at the laptop.
-      </div>
-    </div>
-  );
-}
+
