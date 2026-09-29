@@ -165,14 +165,18 @@ function BoothTools({ sendCommand }: { sendCommand: SendCommand }) {
       const speakStart = speakStartRef.current;
 
       if (speakStart != null) {
-        // Primary: sustained silence after the agent has actually spoken.
+        const sinceSpeak = now - speakStart;
         const silentFor = now - lastSpeakingAtRef.current;
-        if (!isSpeakingRef.current && silentFor >= COMPLETE_SETTLE_MS) {
+        // Don't let a mid-roast pause (dramatic beat, gap before the closing
+        // line, or flaky isSpeaking=false) end it early: require most of the
+        // estimated roast to have been spoken before silence can complete.
+        const minSpokenMs = Math.max(estSpokenMsRef.current * 0.8, 18_000);
+        if (sinceSpeak >= minSpokenMs && !isSpeakingRef.current && silentFor >= COMPLETE_SETTLE_MS) {
           fireComplete();
           return;
         }
         // Backstop: silence never detected (isSpeaking stuck) -> estimated end.
-        if (now - speakStart >= estSpokenMsRef.current + COMPLETE_TAIL_MS) {
+        if (sinceSpeak >= estSpokenMsRef.current + COMPLETE_TAIL_MS) {
           fireComplete();
           return;
         }
