@@ -41,27 +41,8 @@ export function BoothAgentProvider({
   children: ReactNode;
   sendCommand: SendCommand;
 }) {
-  const { state } = useSession();
-
-  // Accumulate the founder's answer for the CURRENT question: finalized ASR
-  // segments live in committedRef, and the in-progress (tentative) partial is
-  // appended for display. Reset when the phase changes (new question) so a prior
-  // answer never bleeds into the next.
-  const committedRef = useRef('');
-  const lastPhaseRef = useRef(state?.phase);
-  const lastSentRef = useRef(0);
-  if (state?.phase !== lastPhaseRef.current) {
-    lastPhaseRef.current = state?.phase;
-    committedRef.current = '';
-  }
-
-  const relayLive = (text: string, immediate = false) => {
-    const now = Date.now();
-    if (!immediate && now - lastSentRef.current < 100) return; // throttle ~10/s
-    lastSentRef.current = now;
-    sendCommand({ type: 'liveTranscript', text });
-  };
-
+  // Live founder captions come from the browser's SpeechRecognition (see
+  // useLiveCaption in Station), not from ElevenLabs events.
   return (
     <ConversationProvider
       onConnect={(info: unknown) => {
@@ -71,35 +52,6 @@ export function BoothAgentProvider({
       onError={(error: unknown) =>
         sendCommand({ type: 'agentError', message: String(error) })
       }
-      onIncomingEvent={(evt: unknown) => {
-        // Live founder transcription for the /audience word-by-word captions.
-        // tentative_user_transcript = in-progress partial; user_transcript = the
-        // finalized segment. Both must be enabled in the agent's client_events.
-        const e = evt as {
-          type?: string;
-          tentative_user_transcription_event?: { user_transcript?: string };
-          user_transcription_event?: { user_transcript?: string };
-        };
-        if (e?.type === 'tentative_user_transcript') {
-          const partial = e.tentative_user_transcription_event?.user_transcript ?? '';
-          // TEMP debug: confirm live/interim events are arriving (watch devtools).
-          console.log('[live] tentative', partial.length, JSON.stringify(partial.slice(0, 60)));
-          relayLive(`${committedRef.current} ${partial}`.trim());
-        } else if (e?.type === 'user_transcript') {
-          const finalSeg = e.user_transcription_event?.user_transcript ?? '';
-          console.log('[live] final', finalSeg.length, JSON.stringify(finalSeg.slice(0, 60)));
-          if (finalSeg.trim()) {
-            committedRef.current = `${committedRef.current} ${finalSeg}`.trim();
-            relayLive(committedRef.current, true);
-          }
-        }
-      }}
-      onAudioAlignment={(alignment: unknown) => {
-        // Character-level timing for agent speech. Shape is not documented in
-        // detail — log it once on the first live run, then refine the
-        // /audience reveal (computeRevealSchedule) to consume it.
-        console.log('[alignment]', alignment);
-      }}
     >
       <BoothTools sendCommand={sendCommand} />
       {children}

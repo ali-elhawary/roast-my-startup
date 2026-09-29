@@ -3,6 +3,7 @@ import { useSession } from '@/lib/ws';
 import { useNow } from '@/lib/useNow';
 import { BoothAgentProvider, useBoothAgent } from '@/lib/agent';
 import { useVideoRecorder } from '@/lib/videoRecorder';
+import { useLiveCaption } from '@/lib/liveCaption';
 import { QUESTIONS, QUESTION_TIMEOUT_MS, SYNC_CALIBRATION_MS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
 
@@ -45,6 +46,9 @@ function StationInner() {
   } = useVideoRecorder();
   const [kioskReady, setKioskReady] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+
+  // Live founder captions (browser SpeechRecognition) -> liveTranscript feed.
+  useLiveCaption({ active: kioskReady, phase: state?.phase, sendCommand });
   const startedFor = useRef<string | null>(null);
   const lastSkipSignal = useRef(0);
   const lastRestartSignal = useRef(0);
