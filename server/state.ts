@@ -157,9 +157,9 @@ export function reduce(
         return { ...state, answers };
       }
       const next = nextQuestionPhase(state.phase)!;
-      // Keep the previous answer on screen; it lingers through the roaster's next
-      // question and is overwritten when the founder starts the next answer.
-      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false };
+      // liveTranscript is the CURRENT question's answer; blank it on advance. The
+      // audience holds the previous Q&A for a few seconds as a display effect.
+      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false, liveTranscript: '' };
     }
 
     case 'skip': {
@@ -173,6 +173,7 @@ export function reduce(
         phaseStartedAt: now,
         paused: false,
         skipSignal: state.skipSignal + 1,
+        liveTranscript: '',
       };
     }
 

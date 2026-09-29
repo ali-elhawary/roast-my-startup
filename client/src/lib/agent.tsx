@@ -82,9 +82,12 @@ export function BoothAgentProvider({
         };
         if (e?.type === 'tentative_user_transcript') {
           const partial = e.tentative_user_transcription_event?.user_transcript ?? '';
+          // TEMP debug: confirm live/interim events are arriving (watch devtools).
+          console.log('[live] tentative', partial.length, JSON.stringify(partial.slice(0, 60)));
           relayLive(`${committedRef.current} ${partial}`.trim());
         } else if (e?.type === 'user_transcript') {
           const finalSeg = e.user_transcription_event?.user_transcript ?? '';
+          console.log('[live] final', finalSeg.length, JSON.stringify(finalSeg.slice(0, 60)));
           if (finalSeg.trim()) {
             committedRef.current = `${committedRef.current} ${finalSeg}`.trim();
             relayLive(committedRef.current, true);

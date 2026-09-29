@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/lib/ws';
+import { useNow } from '@/lib/useNow';
 import { Brand } from '@/lib/Brand';
 import { splitSentences } from '@/lib/reveal';
 import { QUESTIONS } from '@shared/constants';
@@ -45,15 +46,47 @@ export default function Audience() {
   );
 }
 
+// How long the previous question + answer stay frozen on screen after the
+// roaster moves to the next question.
+const HOLD_MS = 5_000;
+
 // Question pinned at top + the founder's live word-by-word answer below (from the
-// ElevenLabs tentative/final user transcript). On the next question the header
-// swaps and the answer area resets. The roast phase shows the roast text.
+// ElevenLabs tentative/final user transcript). When the roaster advances to the
+// next question, the previous question+answer are held for HOLD_MS before the
+// header swaps. The roast phase shows the roast text.
 function ConversationView({ state }: { state: SessionState }) {
-  const activeIndex =
+  const phaseIdx =
     state.phase === 'q1' ? 0 : state.phase === 'q2' ? 1 : state.phase === 'q3' ? 2 : -1;
-  const currentQuestion = activeIndex >= 0 ? QUESTIONS[activeIndex as 0 | 1 | 2] : null;
+  const live = state.liveTranscript;
   const firstName = state.founder?.name.trim().split(/\s+/)[0];
   const roastText = state.roast?.text ?? '';
+  const now = useNow(200);
+
+  // Freeze the previous Q&A for HOLD_MS when the question advances.
+  const prevIdxRef = useRef(phaseIdx);
+  const lastAnswerRef = useRef(live);
+  const heldRef = useRef<{ idx: number; text: string } | null>(null);
+  const holdUntilRef = useRef(0);
+
+  if (phaseIdx !== prevIdxRef.current) {
+    // Only hold when moving BETWEEN question phases (q1->q2, q2->q3); leaving the
+    // questions (q3->generating) or entering them (ready->q1) switches straight.
+    if (prevIdxRef.current >= 0 && phaseIdx >= 0) {
+      heldRef.current = { idx: prevIdxRef.current, text: lastAnswerRef.current };
+      holdUntilRef.current = Date.now() + HOLD_MS;
+    } else {
+      heldRef.current = null;
+      holdUntilRef.current = 0;
+    }
+    lastAnswerRef.current = phaseIdx >= 0 ? live : '';
+    prevIdxRef.current = phaseIdx;
+  }
+  if (phaseIdx >= 0) lastAnswerRef.current = live;
+
+  const holding = heldRef.current !== null && now < holdUntilRef.current;
+  const showIdx = holding ? heldRef.current!.idx : phaseIdx;
+  const showText = holding ? heldRef.current!.text : live;
+  const currentQuestion = showIdx >= 0 ? QUESTIONS[showIdx as 0 | 1 | 2] : null;
 
   return (
     <div className="flex h-full flex-col px-16 py-12">
@@ -64,7 +97,7 @@ function ConversationView({ state }: { state: SessionState }) {
         {currentQuestion ? (
           <div className="flex items-center gap-6">
             <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-accent text-4xl font-bold text-ink-900">
-              {activeIndex + 1}
+              {showIdx + 1}
             </span>
             <h1 className="text-7xl font-black leading-none tracking-tight text-ink-100">
               {currentQuestion}
@@ -87,9 +120,9 @@ function ConversationView({ state }: { state: SessionState }) {
       {/* Body: live answer during Q&A, or the roast text while roasting. */}
       <div className="mt-10 flex-1 overflow-hidden">
         {currentQuestion ? (
-          state.liveTranscript ? (
+          showText ? (
             <p className="text-6xl font-normal leading-tight tracking-tight text-ink-100">
-              {state.liveTranscript}
+              {showText}
             </p>
           ) : (
             <p className="text-4xl text-ink-400">Listening&hellip; take your time.</p>
