@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/lib/ws';
 import { useNow } from '@/lib/useNow';
-import { Brand } from '@/lib/Brand';
 import { splitSentences } from '@/lib/reveal';
 import { QUESTIONS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
@@ -90,9 +89,7 @@ function ConversationView({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col px-16 py-12">
-      <Brand className="text-4xl" />
-
-      {/* Header: the pinned question (below the brand) or phase label. */}
+      {/* Header: the pinned question or phase label. */}
       <div className="mt-8 min-h-[6rem]">
         {currentQuestion ? (
           <div className="flex items-center gap-6">
@@ -189,7 +186,6 @@ function Attract() {
 
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
-      <Brand className="text-5xl" />
       <div>
         <h1 className="max-w-6xl text-8xl font-black leading-[1.05] tracking-tight text-balance">
           Tell us what you&rsquo;re building.
@@ -221,7 +217,6 @@ function RoastCard({ state }: { state: SessionState }) {
 
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
-      <Brand className="text-5xl" />
       <div className="flex flex-1 items-center">
         <blockquote className="max-w-6xl font-serif text-8xl leading-[1.08] tracking-tight text-balance">
           <span className="text-accent">&ldquo;</span>

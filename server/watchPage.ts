@@ -89,7 +89,6 @@ function renderPlayer(opts: {
   </style>
 </head>
 <body>
-  <div class="brand"><b>MongoDB</b> &times; <b>Google Cloud</b> &times; <b>ElevenLabs</b></div>
   <h1>Your <span class="accent">roast</span>, on the record.</h1>
   <video controls playsinline preload="metadata">
     <source src="${streamUrl}" type="video/mp4" />

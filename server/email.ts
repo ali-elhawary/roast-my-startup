@@ -61,7 +61,7 @@ function composeEmail(input: FollowUpEmailInput): {
   const text = [
     `Hi ${firstName},`,
     '',
-    'Thank you for stopping by Roast My Startup, powered by MongoDB x Google Cloud x ElevenLabs! We hope your roast wasn\u2019t too spicy \u{1F609}',
+    'Thank you for stopping by Roast My Startup, powered by MongoDB, Google Cloud, and ElevenLabs! We hope your roast wasn\u2019t too spicy \u{1F609}',
     '',
     linksText,
     '',
@@ -89,7 +89,7 @@ function composeEmail(input: FollowUpEmailInput): {
 
   const html = `<div style="font-family:system-ui,Segoe UI,sans-serif;max-width:560px;line-height:1.5;color:#001E2B">
   <p>Hi ${escapeHtml(firstName)},</p>
-  <p>Thank you for stopping by Roast My Startup, powered by MongoDB &times; Google Cloud &times; ElevenLabs! We hope your roast wasn\u2019t too spicy \u{1F609}</p>
+  <p>Thank you for stopping by Roast My Startup, powered by MongoDB, Google Cloud, and ElevenLabs! We hope your roast wasn\u2019t too spicy \u{1F609}</p>
   <p>${linksHtml}</p>
   <p>Feel free to share it on social media &mdash; just make sure to tag <strong>@MongoDB</strong> and use <strong>#MongoDBlocal</strong>.</p>
   <p>Since you\u2019re bold enough to survive a live roast, you might be a great fit for the MongoDB for Startups program. Qualified founders can get up to <strong>$15,000 in Atlas credits*</strong>, technical guidance, and go-to-market support to help you build and scale.</p>
