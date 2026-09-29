@@ -41,8 +41,6 @@ export function BoothAgentProvider({
   children: ReactNode;
   sendCommand: SendCommand;
 }) {
-  // Live founder captions come from the browser's SpeechRecognition (see
-  // useLiveCaption in Station), not from ElevenLabs events.
   return (
     <ConversationProvider
       onConnect={(info: unknown) => {

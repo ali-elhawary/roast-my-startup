@@ -96,8 +96,7 @@ function renderPlayer(opts: {
     Your browser can't play this video. Download it: <a href="${downloadUrl || streamUrl}">here</a>
   </video>
   ${downloadButton}
-  <p class="note">Turn on captions with the CC button. This link expires; save the
-  video if you want to keep it.</p>
+  <p class="note">This link expires; save the video if you want to keep it.</p>
 </body>
 </html>`;
 }

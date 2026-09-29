@@ -159,6 +159,12 @@ export default function Operator() {
           <Btn onClick={() => send({ type: 'pause' })}>Pause</Btn>
         )}
         <Btn
+          onClick={() => send({ type: 'advance' })}
+          disabled={!['q1', 'q2', 'q3'].includes(state.phase)}
+        >
+          Advance screen
+        </Btn>
+        <Btn
           onClick={() => send({ type: 'skip' })}
           disabled={!['q1', 'q2', 'q3'].includes(state.phase)}
         >

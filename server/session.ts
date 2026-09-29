@@ -42,10 +42,7 @@ export function addClient(ws: WebSocket) {
 export function dispatch(command: Command) {
   const prev = state;
   state = reduce(state, command, Date.now());
-  // liveTranscript fires word-by-word (many per answer); don't flood the log.
-  if (command.type !== 'liveTranscript') {
-    console.log(`[cmd] ${command.type} -> phase=${state.phase} source=${state.sessionSource ?? '-'}`);
-  }
+  console.log(`[cmd] ${command.type} -> phase=${state.phase} source=${state.sessionSource ?? '-'}`);
 
   // If the operator intervenes, cancel any running fake session so its pending
   // timers don't fight the new state.

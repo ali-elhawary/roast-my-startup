@@ -1,34 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '@/lib/ws';
-import { useNow } from '@/lib/useNow';
 import { FitText } from '@/lib/FitText';
-import { splitSentences } from '@/lib/reveal';
-import { QUESTIONS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
 
-// The most important screen. Read from 6-10 feet. Nothing smaller than 24px;
-// roast text 48px+.
+// The most important screen. Read from 6-10 feet. It stays on the landing page
+// (rotating sassy quips) for the whole session and only reveals the actual roast
+// the moment the roaster delivers it (roasting -> complete). No live transcript.
 export default function Audience() {
   const { state } = useSession();
   if (!state) return <Center>Connecting&hellip;</Center>;
 
-  let content: React.ReactNode;
-  switch (state.phase) {
-    case 'ready':
-    case 'q1':
-    case 'q2':
-    case 'q3':
-    case 'generating':
-    case 'roasting':
-      content = <ConversationView state={state} />;
-      break;
-    case 'complete':
-      content = <RoastCard state={state} />;
-      break;
-    case 'idle':
-    default:
-      content = <Attract />;
-  }
+  const showRoast =
+    (state.phase === 'roasting' || state.phase === 'complete') && !!state.roast?.text;
+  const content = showRoast ? <RoastCard state={state} /> : <Attract />;
 
   // Brand background image + dark scrim behind every audience state.
   return (
@@ -46,112 +30,40 @@ export default function Audience() {
   );
 }
 
-// How long the previous question + answer stay frozen on screen after the
-// roaster moves to the next question.
-const HOLD_MS = 5_000;
+// Sassy one-liners that rotate on the landing page. Generic crowd hype, not the
+// founder's actual roast.
+const QUIPS = [
+  '"A moat made entirely of vibes."',
+  '"You said AI eleven times and product zero."',
+  '"Your TAM is everyone, which means it\u2019s no one."',
+  '"Bold of you to charge for a feature Gmail ships free."',
+  '"The deck says pre-revenue. The roast says pre-idea."',
+  '"Great logo. Now what does it do?"',
+  '"Disrupting an industry that politely asked you not to."',
+  '"Your competitor is a spreadsheet, and it\u2019s winning."',
+  '"Series A dreams on a hackathon budget."',
+  '"Solving a problem three people have, beautifully."',
+  '"Monetization strategy: hope, at scale."',
+  'You\u2019re not in "stealth mode," you just have a domain name, a Canva logo, and zero customers. But hey, at least the custom Patagonia vests look official.',
+  'Your pitch deck spent 20 slides explaining how AI will revolutionize your app, but your core business model is still just hoping your parents don\u2019t ask for their money back.',
+  'Calling your company "Uber for X" isn\u2019t a strategy, it\u2019s just a venture-backed speedrun to bankruptcy. At least you got a ping pong table out of the deal.',
+  '"We\u2019re pre-revenue" is an exceptionally polite way to say you\u2019ve been running a $2 million hobby for eighteen months. But sure, tell me more about your Series A projections.',
+  'You spent three weeks debating your brand\u2019s official hex codes before ever speaking to a single human customer. Great news: the color palette looks fantastic on your zero active users.',
+  'You\u2019re not "disrupting an industry," you\u2019re just burning venture capital to re-invent the public bus and charge five times as much for it.',
+  'Saying your startup\u2019s culture is "work hard, play hard" just means you pay 80-hour workweeks with unlimited cold brew and equity that\u2019s currently worth a gift card to Subway.',
+  'You called an all-hands meeting to finalize the company\u2019s core values, yet nobody in the room actually knows what the software is supposed to do.',
+  'Your burn rate is higher than a rocket launch, but you\u2019re still convinced a single viral TikTok will somehow make the unit economics work.',
+  'The founder talks about "changing the world" like they\u2019re landing a man on the moon, but the product is literally just an app that tells you when your laundry is dry.',
+];
 
-// Question pinned at top + the founder's live word-by-word answer below (from the
-// ElevenLabs tentative/final user transcript). When the roaster advances to the
-// next question, the previous question+answer are held for HOLD_MS before the
-// header swaps. The roast phase shows the roast text.
-function ConversationView({ state }: { state: SessionState }) {
-  const phaseIdx =
-    state.phase === 'q1' ? 0 : state.phase === 'q2' ? 1 : state.phase === 'q3' ? 2 : -1;
-  const live = state.liveTranscript;
-  const firstName = state.founder?.name.trim().split(/\s+/)[0];
-  const roastText = state.roast?.text ?? '';
-  const now = useNow(200);
-
-  // Freeze the previous Q&A for HOLD_MS when the question advances.
-  const prevIdxRef = useRef(phaseIdx);
-  const lastAnswerRef = useRef(live);
-  const heldRef = useRef<{ idx: number; text: string } | null>(null);
-  const holdUntilRef = useRef(0);
-
-  if (phaseIdx !== prevIdxRef.current) {
-    // Only hold when moving BETWEEN question phases (q1->q2, q2->q3); leaving the
-    // questions (q3->generating) or entering them (ready->q1) switches straight.
-    if (prevIdxRef.current >= 0 && phaseIdx >= 0) {
-      heldRef.current = { idx: prevIdxRef.current, text: lastAnswerRef.current };
-      holdUntilRef.current = Date.now() + HOLD_MS;
-    } else {
-      heldRef.current = null;
-      holdUntilRef.current = 0;
-    }
-    lastAnswerRef.current = phaseIdx >= 0 ? live : '';
-    prevIdxRef.current = phaseIdx;
-  }
-  if (phaseIdx >= 0) lastAnswerRef.current = live;
-
-  const holding = heldRef.current !== null && now < holdUntilRef.current;
-  const showIdx = holding ? heldRef.current!.idx : phaseIdx;
-  const showText = holding ? heldRef.current!.text : live;
-  const currentQuestion = showIdx >= 0 ? QUESTIONS[showIdx as 0 | 1 | 2] : null;
-
-  return (
-    <div className="flex h-full flex-col px-16 py-12">
-      {/* Header: the pinned question or phase label. */}
-      <div className="mt-8 min-h-[6rem]">
-        {currentQuestion ? (
-          <div className="flex items-center gap-6">
-            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-accent text-4xl font-bold text-ink-900">
-              {showIdx + 1}
-            </span>
-            <h1 className="text-7xl font-black leading-none tracking-tight text-ink-100">
-              {currentQuestion}
-            </h1>
-          </div>
-        ) : state.phase === 'generating' ? (
-          <div className="inline-flex items-center gap-4 rounded-full bg-ink-800/80 px-8 py-4 text-4xl font-bold text-accent">
-            Cooking up the roast
-            <Dots />
-          </div>
-        ) : state.phase === 'roasting' ? (
-          <div className="text-5xl font-black uppercase tracking-[0.2em] text-accent">The Roast</div>
-        ) : (
-          <h1 className="text-6xl font-black tracking-tight text-ink-100">
-            You&rsquo;re up{firstName ? `, ${firstName}` : ''}.
-          </h1>
-        )}
-      </div>
-
-      {/* Body: live answer during Q&A, or the roast text while roasting. */}
-      <div className="mt-10 flex-1 overflow-hidden">
-        {currentQuestion ? (
-          showText ? (
-            <p className="text-6xl font-normal leading-tight tracking-tight text-ink-100">
-              {showText}
-            </p>
-          ) : (
-            <p className="text-4xl text-ink-400">Listening&hellip; take your time.</p>
-          )
-        ) : state.phase === 'roasting' && roastText ? (
-          <FitText
-            maxPx={56}
-            minPx={22}
-            refitKey={roastText}
-            className="font-black leading-snug tracking-tight text-ink-100"
-          >
-            {roastText}
-          </FitText>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function Dots() {
-  return (
-    <span className="inline-flex gap-1.5">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-3 w-3 rounded-full bg-accent"
-          style={{ animation: 'dotBlink 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s` }}
-        />
-      ))}
-    </span>
-  );
+// Cycle an index every `ms`.
+function useRotating(count: number, ms: number): number {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % count), ms);
+    return () => clearInterval(id);
+  }, [count, ms]);
+  return i;
 }
 
 function NextUp({ state }: { state: SessionState }) {
@@ -174,39 +86,24 @@ function Center({ children }: { children: React.ReactNode }) {
   );
 }
 
-const ATTRACT_LINES = [
-  '"A moat made entirely of vibes."',
-  '"You said AI eleven times and product zero."',
-  '"Your TAM is everyone, which means it\u2019s no one."',
-  '"Bold of you to charge for a feature Gmail ships free."',
-  '"The deck says pre-revenue. The roast says pre-idea."',
-  '"Great logo. Now what does it do?"',
-];
-
 function Attract() {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setI((n) => (n + 1) % ATTRACT_LINES.length), 4000);
-    return () => clearInterval(id);
-  }, []);
-
+  const i = useRotating(QUIPS.length, 6000);
   return (
-    <div className="flex h-full flex-col justify-between px-16 py-14">
-      <div>
-        <h1 className="max-w-6xl text-8xl font-black leading-[1.05] tracking-tight text-balance">
-          Tell us what you&rsquo;re building.
-          <br />
-          Get <span className="text-accent">roasted</span> in two minutes.
-        </h1>
-        <div className="mt-12 h-20">
-          <p
-            key={i}
-            className="text-5xl text-ink-200"
-            style={{ animation: 'fadeInOut 4s ease-in-out' }}
-          >
-            {ATTRACT_LINES[i]}
-          </p>
-        </div>
+    <div className="flex h-full flex-col px-16 py-14">
+      <h1 className="max-w-6xl text-8xl font-black leading-[1.05] tracking-tight text-balance">
+        Tell us what you&rsquo;re building.
+        <br />
+        Get <span className="text-accent">roasted</span> in two minutes.
+      </h1>
+      <div className="flex-1 py-10">
+        <FitText
+          maxPx={64}
+          minPx={24}
+          refitKey={i}
+          className="max-w-6xl leading-tight tracking-tight text-balance text-ink-200"
+        >
+          {QUIPS[i]}
+        </FitText>
       </div>
       <div className="text-3xl text-white">
         Sign in at the laptop &rarr; take the chair &rarr; brace yourself.
@@ -216,22 +113,18 @@ function Attract() {
 }
 
 function RoastCard({ state }: { state: SessionState }) {
-  const sentences = splitSentences(state.roast?.text ?? '');
-  const punchline = sentences.length
-    ? sentences[sentences.length - 1]
-    : 'That\u2019s a wrap.';
-
+  const roast = state.roast?.text?.trim() || 'That\u2019s a wrap.';
   return (
     <div className="flex h-full flex-col justify-between px-16 py-14">
       <div className="flex flex-1 items-center">
         <FitText
-          maxPx={96}
-          minPx={40}
-          refitKey={punchline}
-          className="max-w-6xl font-serif leading-[1.08] tracking-tight text-balance"
+          maxPx={88}
+          minPx={30}
+          refitKey={roast}
+          className="max-w-6xl font-serif leading-[1.12] tracking-tight text-balance text-ink-100"
         >
           <span className="text-accent">&ldquo;</span>
-          {punchline}
+          {roast}
           <span className="text-accent">&rdquo;</span>
         </FitText>
       </div>

@@ -39,17 +39,6 @@ export function runFakeSession(
   const roast = variant === 'banned' ? FAKE_ROASTS.banned : FAKE_ROASTS.pass;
   const spokenRoast = validateRoast(roast.text).ok ? roast.text : FALLBACK_ROAST.text;
 
-  // Type an answer word-by-word to mimic the live user-transcript feed that
-  // drives the audience captions.
-  const typeAnswer = (startMs: number, text: string) => {
-    const words = text.split(/\s+/).filter(Boolean);
-    words.forEach((_, i) => {
-      at(startMs + i * 350, () =>
-        dispatch({ type: 'liveTranscript', text: words.slice(0, i + 1).join(' ') }),
-      );
-    });
-  };
-
   at(0, {
     type: 'signin',
     name: FAKE_FOUNDER.name,
@@ -60,14 +49,9 @@ export function runFakeSession(
   at(2_000, { type: 'start' });
   at(2_200, { type: 'conversationStarted', conversationId: `fake_${Date.now()}` });
 
-  // Q1: founder answers word-by-word, then captureAnswer advances.
-  typeAnswer(4_000, FAKE_ANSWERS.building);
+  // captureAnswer advances each question.
   at(8_000, { type: 'answer', index: 1, text: FAKE_ANSWERS.building });
-  // Q2
-  typeAnswer(13_000, FAKE_ANSWERS.audience);
   at(20_000, { type: 'answer', index: 2, text: FAKE_ANSWERS.audience });
-  // Q3
-  typeAnswer(27_000, FAKE_ANSWERS.differentiation);
   at(35_000, { type: 'answer', index: 3, text: FAKE_ANSWERS.differentiation });
 
   at(40_000, () => {

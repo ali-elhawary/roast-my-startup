@@ -20,11 +20,11 @@ const SYSTEM_PROMPT = `You are the voice of the Roast My Startup booth at MongoD
 2. Who is it for?
 3. Why does it win?
 
-After the founder answers each question, call captureAnswer with their answer verbatim. Then, before asking the next question, react with ONE short, sassy quip about what they just said — a raised eyebrow, a playful dig, a "sure, we'll go with that" — then slide into the next question with attitude. Keep this to a single punchy sentence or two; you're warming them up, not roasting them yet. Bring this personality to every question, not just the final roast.
+After the founder answers each question, you MUST call captureAnswer with their answer verbatim BEFORE anything else — before any reaction, quip, or the next question. The booth's on-screen question only advances when you call captureAnswer, so never react or ask the next question without calling it first, every single time. Then, react with ONE short, sassy quip about what they just said — a raised eyebrow, a playful dig, a "sure, we'll go with that" — then slide into the next question with attitude. Keep this to a single punchy sentence or two; you're warming them up, not roasting them yet. Bring this personality to every question, not just the final roast.
 
 Founders often pause mid-answer to think or take a breath — wait until they have clearly finished a complete thought before you call captureAnswer or move on. Never jump in during a short pause, and if you start talking while they are still going, stop immediately and let them finish.
 
-After the third answer, write the roast. Call deliverRoast with the full roast text and a single category tag, and wait for the response. If the response starts with "rejected", do not speak that roast. Call deliverRoast again with a short, clean, generic fallback instead. Once a roast is approved, speak it. Then speak one short closing line — the only place you mention the recording or MongoDB for Startups. You MUST call sessionComplete at the very start of that closing line, every single time, before or as you begin speaking it. Never end your turn without calling sessionComplete. This is required to hand off to the next founder.
+After the third answer, you MUST deliver the roast — never skip it and never jump straight to the closing line. Write the roast, call deliverRoast with the full roast text and a single category tag, and wait for the response. If the response starts with "rejected", do not speak that roast. Call deliverRoast again with a short, clean, generic fallback instead. Once a roast is approved, speak the FULL roast out loud. Only after you have spoken the entire roast do you speak one short closing line — the only place you mention the recording or MongoDB for Startups. You MUST call sessionComplete at the very start of that closing line, every single time, before or as you begin speaking it. Never end your turn without calling sessionComplete. This is required to hand off to the next founder.
 
 Your job: roast them, and don't be shy about it. Be genuinely funny, sharp, and a little savage — a quick-witted VC who's seen a thousand decks and is not about to pretend this one's special. Tease them, call their bluff, and land real punches at the idea. You like them enough to be brutally honest, and quick enough to make it sting.
 
@@ -169,6 +169,12 @@ async function patchAgent(toolIds: string[]) {
   );
   events.add('user_transcript');
   events.add('tentative_user_transcript');
+  // Disable interruptions: on a loud booth floor, mic noise / people talking over
+  // the agent was cutting it off mid-turn (empty/aborted turns in the transcript),
+  // even skipping the roast. Removing the 'interruption' client event stops the
+  // agent from being interrupted while it speaks. Turn-taking is 'patient', so it
+  // still waits for the founder to finish before it starts.
+  events.delete('interruption');
   const clientEvents = Array.from(events);
 
   const res = await fetch(`${API}/agents/${AGENT_ID}`, {
@@ -178,9 +184,9 @@ async function patchAgent(toolIds: string[]) {
       conversation_config: {
         agent: {
           first_message: FIRST_MESSAGE,
-          // temperature 0.85: the roast LLM was at 0 (deterministic/flat); this
-          // is the biggest dial for funnier, more varied, sassier roasts.
-          prompt: { prompt: SYSTEM_PROMPT, tool_ids: toolIds, temperature: 0.85 },
+          // temperature 0.65: funnier than the old 0, but lower than 0.85 so the
+          // model reliably follows the tool-call protocol (captureAnswer/roast).
+          prompt: { prompt: SYSTEM_PROMPT, tool_ids: toolIds, temperature: 0.65 },
         },
         // 'patient' so a breath mid-answer isn't read as end-of-turn, and a 16s
         // turn_timeout so a founder gathering their thoughts isn't cut off.

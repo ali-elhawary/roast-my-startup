@@ -51,10 +51,6 @@ export type SessionState = {
     differentiation: string;
   };
   roast: Roast | null;
-  // Live word-by-word transcription of the founder's current answer (ElevenLabs
-  // tentative/final user transcript). Cleared when the question advances or a new
-  // session begins.
-  liveTranscript: string;
   phaseStartedAt: number | null;
   error: string | null;
   // Increments on every `skip` (operator or question-timeout). /station watches
@@ -81,13 +77,13 @@ export type Command =
   | { type: 'start' }
   | { type: 'conversationStarted'; conversationId: string }
   | { type: 'answer'; index: 1 | 2 | 3; text: string }
-  | { type: 'liveTranscript'; text: string } // live word-by-word founder answer for /audience
   | { type: 'roast'; text: string; category: string; source: RoastSource }
   | { type: 'complete' }
   | { type: 'next' } // Done / Call next: end current, promote next in line
   | { type: 'restart' } // operator restarts the current founder's roast (discard broken attempt)
   | { type: 'dequeue'; id: string } // operator removes someone from the line
   | { type: 'skip' } // operator (or timeout) skips the current question
+  | { type: 'advance' } // operator: advance the on-screen question WITHOUT nudging the agent
   | { type: 'skipRoast' } // operator hands the founder to the Startups rep
   | { type: 'pause' }
   | { type: 'resume' }

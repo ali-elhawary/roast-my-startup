@@ -41,7 +41,6 @@ export function initialState(): SessionState {
     queue: [],
     answers: emptyAnswers(),
     roast: null,
-    liveTranscript: '',
     phaseStartedAt: null,
     error: null,
     skipSignal: 0,
@@ -157,9 +156,7 @@ export function reduce(
         return { ...state, answers };
       }
       const next = nextQuestionPhase(state.phase)!;
-      // liveTranscript is the CURRENT question's answer; blank it on advance. The
-      // audience holds the previous Q&A for a few seconds as a display effect.
-      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false, liveTranscript: '' };
+      return { ...state, answers, phase: next, phaseStartedAt: now, paused: false };
     }
 
     case 'skip': {
@@ -173,15 +170,16 @@ export function reduce(
         phaseStartedAt: now,
         paused: false,
         skipSignal: state.skipSignal + 1,
-        liveTranscript: '',
       };
     }
 
-    case 'liveTranscript': {
-      // Live word-by-word founder answer relayed from /station's agent. Display
-      // only; never changes phase, and only meaningful while a question is up.
+    case 'advance': {
+      // Operator display resync: the agent moved to the next question but the
+      // screen didn't (missed captureAnswer). Advance the phase WITHOUT bumping
+      // skipSignal, so the agent is NOT nudged (it's already ahead).
       if (!QUESTION_PHASES.includes(state.phase)) return state;
-      return { ...state, liveTranscript: command.text };
+      const next = nextQuestionPhase(state.phase)!;
+      return { ...state, phase: next, phaseStartedAt: now, paused: false };
     }
 
     case 'roast': {
@@ -192,7 +190,7 @@ export function reduce(
         category: command.category,
         source: command.source,
       };
-      return { ...state, roast, phase: 'roasting', phaseStartedAt: now, liveTranscript: '' };
+      return { ...state, roast, phase: 'roasting', phaseStartedAt: now };
     }
 
     case 'complete': {

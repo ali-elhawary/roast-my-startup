@@ -3,7 +3,6 @@ import { useSession } from '@/lib/ws';
 import { useNow } from '@/lib/useNow';
 import { BoothAgentProvider, useBoothAgent } from '@/lib/agent';
 import { useVideoRecorder } from '@/lib/videoRecorder';
-import { useLiveCaption } from '@/lib/liveCaption';
 import { QUESTIONS, QUESTION_TIMEOUT_MS, SYNC_CALIBRATION_MS } from '@shared/constants';
 import type { SessionState } from '@shared/types';
 
@@ -46,9 +45,6 @@ function StationInner() {
   } = useVideoRecorder();
   const [kioskReady, setKioskReady] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
-
-  // Live founder captions (browser SpeechRecognition) -> liveTranscript feed.
-  useLiveCaption({ active: kioskReady, phase: state?.phase, sendCommand });
   const startedFor = useRef<string | null>(null);
   const lastSkipSignal = useRef(0);
   const lastRestartSignal = useRef(0);
@@ -382,10 +378,6 @@ function QuestionView({ state }: { state: SessionState }) {
   const elapsed = state.phaseStartedAt ? now - state.phaseStartedAt : 0;
   const pct = Math.min(100, (elapsed / QUESTION_TIMEOUT_MS) * 100);
 
-  // The founder's live answer (word-by-word), so they can see their words and not
-  // lose their thread. Cleared server-side when the question advances.
-  const answerSoFar = state.liveTranscript;
-
   return (
     <div className="flex h-full flex-col justify-center px-10">
       <div className="text-2xl font-semibold text-accent">
@@ -393,14 +385,6 @@ function QuestionView({ state }: { state: SessionState }) {
       </div>
       <div className="mt-6 text-7xl font-black leading-tight tracking-tight text-balance">
         {QUESTIONS[idx]}
-      </div>
-
-      <div className="mt-8 min-h-[6rem]">
-        {answerSoFar ? (
-          <p className="text-3xl leading-snug text-ink-100">{answerSoFar}</p>
-        ) : (
-          <p className="text-2xl text-ink-400">Listening&hellip; take your time.</p>
-        )}
       </div>
 
       <div className="mt-10 h-2 w-full overflow-hidden rounded-full bg-ink-700">

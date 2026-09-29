@@ -38,7 +38,6 @@ export type ProcessVideoInput = {
 export async function processSessionVideo(input: ProcessVideoInput): Promise<void> {
   await fs.mkdir(VIDEOS_DIR, { recursive: true });
   const mp4Path = path.join(VIDEOS_DIR, `${input.sessionId}.mp4`);
-  const vttPath = path.join(VIDEOS_DIR, `${input.sessionId}.vtt`);
   const elAudioPath = path.join(VIDEOS_DIR, `${input.sessionId}.elaudio.mp3`);
   let wroteElAudio = false;
 
@@ -69,38 +68,26 @@ export async function processSessionVideo(input: ProcessVideoInput): Promise<voi
       await transcode(input.sourceFile, mp4Path);
     }
 
-    // 4. Captions from the transcript (chunked so they don't cover the frame).
-    let hasCaptions = false;
-    if (details && details.transcript.length) {
-      await fs.writeFile(
-        vttPath,
-        buildVtt(details.transcript, input.offsetMs, details.callDurationSecs),
-        'utf8',
-      );
-      hasCaptions = true;
-    }
-
-    // 5. Deliver. Cloud mode uploads to GCS and emails signed links, falling
-    // back to the durable delivery queue on failure (keeping temp files so a
-    // retry can re-upload). Local mode keeps hosting under /videos + /watch.
+    // 4. Deliver (no captions — the video ships without a transcript track).
+    // Cloud mode uploads to GCS and emails links, falling back to the durable
+    // delivery queue on failure. Local mode hosts under /videos + /watch.
     if (isGcsEnabled()) {
       const job: VideoDeliveryJob = {
         kind: 'video',
         sessionId: input.sessionId,
         conversationId: input.conversationId,
         mp4Path,
-        vttPath: hasCaptions ? vttPath : null,
+        vttPath: null,
         founder: input.founder,
         roast: input.roast,
         offsetMs: input.offsetMs,
       };
       try {
-        await deliverVideo(job); // upload + signed links + Atlas keys + email
-        // Delivered: the objects live in GCS now, drop the local temp files.
+        await deliverVideo(job); // upload + links + Atlas keys + email
+        // Delivered: the objects live in GCS now, drop the local temp file.
         await fs.unlink(mp4Path).catch(() => {});
-        if (hasCaptions) await fs.unlink(vttPath).catch(() => {});
         console.log(
-          `[video] cloud-delivered ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'}, captions=${hasCaptions})`,
+          `[video] cloud-delivered ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'})`,
         );
       } catch (err) {
         // Keep the temp mp4/vtt so the queued job can retry the upload, and do
@@ -120,7 +107,7 @@ export async function processSessionVideo(input: ProcessVideoInput): Promise<voi
       const expiresAt = Date.now() + VIDEO_TTL_DAYS * 24 * 60 * 60 * 1000;
 
       // Record it on the session document.
-      await updateSessionVideo(input.sessionId, watchUrl, expiresAt, hasCaptions);
+      await updateSessionVideo(input.sessionId, watchUrl, expiresAt, false);
 
       // Email the founder the watch link.
       if (input.founder) {
@@ -136,7 +123,7 @@ export async function processSessionVideo(input: ProcessVideoInput): Promise<voi
 
       markDelivered(input.sessionId);
       console.log(
-        `[video] ready for ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'}, captions=${hasCaptions}) -> ${watchUrl}`,
+        `[video] ready for ${input.sessionId} (audio=${audioSource ? 'elevenlabs' : 'mic'}) -> ${watchUrl}`,
       );
     }
   } catch (err) {
