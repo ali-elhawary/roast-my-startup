@@ -86,7 +86,7 @@ export const SYNC_CALIBRATION_MS = 0;
 // How long the cloud delivery pipeline waits for the video to land before
 // falling back to emailing the audio recording. Only used when VIDEO_ENABLED is
 // set: the audio email fires this long after `complete` unless the video
-// delivered first. With 720p capture the transcode+upload finishes in seconds,
-// so 3 minutes lets a healthy video always win while still reaching the founder
-// quickly if the video pipeline genuinely fails.
-export const DELIVERY_FALLBACK_MS = 180_000;
+// delivered first. Sized generously (5 min) so a 1080p transcode + the
+// conversation-finalize poll + upload always beats it — the audio email is a
+// genuine-failure net, not something a slow-but-fine video should ever trip.
+export const DELIVERY_FALLBACK_MS = 300_000;
