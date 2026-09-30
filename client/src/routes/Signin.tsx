@@ -56,10 +56,15 @@ export default function Signin() {
   const busy = !!state && state.phase !== 'idle';
   const canSubmit =
     name.trim() !== '' && email.trim() !== '' && company.trim() !== '' && agreed;
+  // Mirrors the server rule: an idle booth with an empty line auto-promotes this
+  // sign-in straight to the chair. Captured at submit so the confirmation copy
+  // matches what actually happened.
+  const [wentStraightUp, setWentStraightUp] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+    setWentStraightUp(!!state && state.phase === 'idle' && state.queue.length === 0);
     sendCommand({
       type: 'signin',
       name: name.trim(),
@@ -75,15 +80,23 @@ export default function Signin() {
       <div className="flex h-full flex-col items-center justify-center px-8 text-center">
         <Brand className="mb-10 text-2xl" />
         <div className="text-6xl font-extrabold text-accent">You're in, {name.trim()}.</div>
-        <p className="mt-6 max-w-2xl text-3xl text-ink-200">
-          You&rsquo;ve joined the line &mdash; we&rsquo;ll email{' '}
-          <span className="text-ink-100">{myEmail}</span> when you&rsquo;re close to the front.
-          Take a look around, we&rsquo;ll ping you.
-        </p>
+        {wentStraightUp ? (
+          <p className="mt-6 max-w-2xl text-3xl text-ink-200">
+            You&rsquo;re up next &mdash; take the chair and tap{' '}
+            <span className="text-ink-100">Begin</span> when you&rsquo;re ready.
+          </p>
+        ) : (
+          <p className="mt-6 max-w-2xl text-3xl text-ink-200">
+            You&rsquo;ve joined the line &mdash; we&rsquo;ll email{' '}
+            <span className="text-ink-100">{myEmail}</span> when you&rsquo;re close to the front.
+            Take a look around, we&rsquo;ll ping you.
+          </p>
+        )}
         <button
           className="mt-12 text-base text-ink-400 underline underline-offset-4"
           onClick={() => {
             setSubmitted(false);
+            setWentStraightUp(false);
             setName('');
             setEmail('');
             setCompany('');

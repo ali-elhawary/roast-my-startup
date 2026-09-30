@@ -129,10 +129,15 @@ export function reduce(
         consentAt: now,
         source: command.source ?? 'live',
       };
-      // Always enqueue. Promotion is operator-driven ("Call next"), so the
-      // "you've joined the line" confirmation copy is always accurate and the
-      // booth never auto-starts a founder who isn't standing at the chair.
-      return { ...state, queue: [...state.queue, entry] };
+      const queued = { ...state, queue: [...state.queue, entry] };
+      // Booth idle AND nobody waiting: this lone founder is standing at the
+      // chair, so pull them straight into `ready`. Any later sign-in (booth
+      // busy, or a line already forming) just waits — the operator's "Call
+      // next" promotes them, so the "you've joined the line" copy stays true.
+      if (state.phase === 'idle' && state.queue.length === 0) {
+        return promoteNext(queued, now);
+      }
+      return queued;
     }
 
     case 'start': {
