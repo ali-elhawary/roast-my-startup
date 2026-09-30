@@ -9,9 +9,14 @@ import { reconcileTimers } from './timers';
 import { cancelFakeSession } from './fakeSession';
 import { saveSession } from './integrations';
 import { scheduleFollowUp } from './followup';
+import { sendHeadsUpEmail } from './email';
 
 let state = initialState();
 const clients = new Set<WebSocket>();
+
+// Founder ids we've already sent a "you're almost up" heads-up to, so a given
+// person is emailed at most once even as the queue churns around them.
+const headsUpNotified = new Set<string>();
 
 export function getState() {
   return state;
@@ -61,6 +66,23 @@ export function dispatch(command: Command) {
   if (prev.phase !== 'complete' && state.phase === 'complete') {
     void saveSession(state);
     scheduleFollowUp(state);
+  }
+
+  // Heads-up email (Option B): only while a session is active, ping the person
+  // who is second in line (queue[1]) — i.e. next up after the founder now at the
+  // booth — so they can start walking over. Live sign-ups only; best-effort,
+  // fire-and-forget, de-duped per founder id.
+  const onDeck = state.queue[1];
+  if (
+    state.founder &&
+    onDeck &&
+    onDeck.source === 'live' &&
+    !headsUpNotified.has(onDeck.id)
+  ) {
+    headsUpNotified.add(onDeck.id);
+    void sendHeadsUpEmail(onDeck).catch((err) => {
+      console.error('[email] heads-up failed:', err);
+    });
   }
 
   reconcileTimers(state, dispatch);

@@ -63,7 +63,7 @@ export const BANNED_WORDS = [
 // COMPLETE_SAFETY: the roast card stays until someone taps Done; this long
 // backstop only advances if the booth is abandoned. Neither applies during
 // q1..q3, generating, or roasting.
-export const READY_IDLE_TIMEOUT_MS = 90_000;
+export const READY_IDLE_TIMEOUT_MS = 120_000;
 export const COMPLETE_SAFETY_TIMEOUT_MS = 150_000; // ~2.5 min backstop
 // Backstop for the `roasting` phase. Completion is normally driven client-side
 // (agent goes quiet after the roast + closing line). This server-side net only

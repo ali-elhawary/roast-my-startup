@@ -129,13 +129,10 @@ export function reduce(
         consentAt: now,
         source: command.source ?? 'live',
       };
-      const queued = { ...state, queue: [...state.queue, entry] };
-      // Booth free: pull the front of the line straight into `ready`.
-      // Otherwise the sign-up just waits — it never blocks the active session.
-      if (state.phase === 'idle') {
-        return promoteNext(queued, now);
-      }
-      return queued;
+      // Always enqueue. Promotion is operator-driven ("Call next"), so the
+      // "you've joined the line" confirmation copy is always accurate and the
+      // booth never auto-starts a founder who isn't standing at the chair.
+      return { ...state, queue: [...state.queue, entry] };
     }
 
     case 'start': {

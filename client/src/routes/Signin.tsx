@@ -70,21 +70,16 @@ export default function Signin() {
   }
 
   if (submitted) {
-    const myEmail = email.trim().toLowerCase();
-    const isUp = state?.founder?.email?.toLowerCase() === myEmail;
-    const queueIndex = state
-      ? state.queue.findIndex((f) => f.email.toLowerCase() === myEmail)
-      : -1;
-    const lineMsg = isUp
-      ? 'You\u2019re up \u2014 take the chair and tap Begin.'
-      : queueIndex >= 0
-        ? `You\u2019re #${queueIndex + 1} in line. We\u2019ll call you.`
-        : 'Take a seat when you\u2019re called.';
+    const myEmail = email.trim();
     return (
       <div className="flex h-full flex-col items-center justify-center px-8 text-center">
         <Brand className="mb-10 text-2xl" />
         <div className="text-6xl font-extrabold text-accent">You're in, {name.trim()}.</div>
-        <p className="mt-6 max-w-xl text-3xl text-ink-200">{lineMsg}</p>
+        <p className="mt-6 max-w-2xl text-3xl text-ink-200">
+          You&rsquo;ve joined the line &mdash; we&rsquo;ll email{' '}
+          <span className="text-ink-100">{myEmail}</span> when you&rsquo;re close to the front.
+          Take a look around, we&rsquo;ll ping you.
+        </p>
         <button
           className="mt-12 text-base text-ink-400 underline underline-offset-4"
           onClick={() => {

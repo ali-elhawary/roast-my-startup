@@ -27,6 +27,26 @@ export async function sendFollowUpEmail(input: FollowUpEmailInput): Promise<void
   await deliver(input.founder.email, subject, text, html);
 }
 
+// "You're second in line" heads-up. Best-effort (the caller fire-and-forgets and
+// does not retry — a late heads-up is useless).
+export async function sendHeadsUpEmail(founder: {
+  name: string;
+  email: string;
+}): Promise<void> {
+  const firstName = founder.name.trim().split(/\s+/)[0] || 'there';
+  const subject = 'You\u2019re almost up at Roast My Startup';
+  const text = [
+    `Hi ${firstName}, you\u2019re next in line for your roast \u2014 head over to the Roast My Startup booth now so you\u2019re ready when it\u2019s your turn.`,
+    '',
+    'Note: if you\u2019re not at the booth when we call you, we\u2019ll have to move on to the next founder and you\u2019ll need to sign up again.',
+  ].join('\n');
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:560px;line-height:1.5;color:#001E2B">
+  <p>Hi ${escapeHtml(firstName)}, you\u2019re next in line for your roast &mdash; head over to the Roast My Startup booth now so you\u2019re ready when it\u2019s your turn.</p>
+  <p><em>Note: if you\u2019re not at the booth when we call you, we\u2019ll have to move on to the next founder and you\u2019ll need to sign up again.</em></p>
+</div>`;
+  await deliver(founder.email, subject, text, html);
+}
+
 // MongoDB for Startups CTA targets (from the event team).
 const APPLY_URL =
   'https://www.mongodb.com/lp/solutions/startups/partners?utm_campaign=startups-partners&utm_source=localNYC9.30&utm_medium=event';
